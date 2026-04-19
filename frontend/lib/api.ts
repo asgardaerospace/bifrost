@@ -32,8 +32,15 @@ export interface EngineDraftRequest {
   actor?: string;
 }
 
-const BASE_URL =
-  process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000/api/v1";
+// Normalize the configured base URL:
+//  - strip trailing slashes so `${BASE_URL}${path}` never double-slashes
+//  - fall back to dev default only outside production builds
+const RAW_BASE =
+  process.env.NEXT_PUBLIC_API_BASE_URL ??
+  (process.env.NODE_ENV === "production" ? "" : "http://localhost:8000/api/v1");
+
+export const API_BASE_URL = RAW_BASE.replace(/\/+$/, "");
+export const API_BASE_URL_MISSING = API_BASE_URL === "";
 
 class ApiError extends Error {
   status: number;
@@ -49,22 +56,45 @@ async function request<T>(
   path: string,
   init: RequestInit = {}
 ): Promise<T> {
-  const res = await fetch(`${BASE_URL}${path}`, {
-    ...init,
-    headers: {
-      "Content-Type": "application/json",
-      Accept: "application/json",
-      ...(init.headers ?? {}),
-    },
-    cache: "no-store",
-  });
+  if (API_BASE_URL_MISSING) {
+    throw new ApiError(
+      0,
+      null,
+      "API base URL is not configured. Set NEXT_PUBLIC_API_BASE_URL."
+    );
+  }
+
+  const url = `${API_BASE_URL}${path.startsWith("/") ? path : `/${path}`}`;
+
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      ...init,
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+        ...(init.headers ?? {}),
+      },
+      cache: "no-store",
+    });
+  } catch (e) {
+    throw new ApiError(
+      0,
+      null,
+      `Network error contacting API (${e instanceof Error ? e.message : "fetch failed"})`
+    );
+  }
 
   if (!res.ok) {
     let detail: unknown = null;
     try {
       detail = await res.json();
     } catch {
-      detail = await res.text();
+      try {
+        detail = await res.text();
+      } catch {
+        detail = null;
+      }
     }
     const msg =
       typeof detail === "object" && detail !== null && "detail" in detail

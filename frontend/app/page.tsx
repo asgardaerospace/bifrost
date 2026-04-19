@@ -1,5 +1,5 @@
-import { redirect } from "next/navigation";
+import { Workspace } from "@/components/workspace/workspace";
 
 export default function Home() {
-  redirect("/dashboard");
+  return <Workspace />;
 }

@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import { Nav } from "@/components/nav";
 import { Providers } from "./providers";
+import { ApiConfigBanner } from "@/components/api-config-banner";
 
 export const metadata: Metadata = {
-  title: "Bifrost",
-  description: "Asgard Aerospace operating system",
+  title: "Bifrost · Command",
+  description: "Asgard Aerospace command operating system",
 };
 
 export default function RootLayout({
@@ -15,12 +15,10 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className="min-h-screen bg-bg text-ink font-sans">
+      <body className="h-screen overflow-hidden bg-bg text-ink font-sans antialiased">
         <Providers>
-          <div className="flex min-h-screen">
-            <Nav />
-            <main className="flex-1 px-8 py-6">{children}</main>
-          </div>
+          <ApiConfigBanner />
+          {children}
         </Providers>
       </body>
     </html>

@@ -17,18 +17,7 @@ export function DraftOutputView({ output }: { output: DraftOutput }) {
     setErr(null);
     setMsg(null);
     try {
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000/api/v1"}/communications/${comm.id}/request-send-approval`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ requested_by: "ui" }),
-        }
-      );
-      if (!res.ok) {
-        const d = await res.json().catch(() => ({}));
-        throw new Error(d.detail ?? `Failed (${res.status})`);
-      }
+      await api.requestSendApproval(comm.id, { requested_by: "ui" });
       setStatus("pending_approval");
       setMsg("Approval requested.");
     } catch (e) {

@@ -4,13 +4,48 @@
 
 html,
 body {
-  background-color: #0b0d10;
+  background-color: #06080b;
   color: #e6e9ef;
-  font-feature-settings: "cv11", "ss01";
+  font-feature-settings: "cv11", "ss01", "tnum";
   -webkit-font-smoothing: antialiased;
+  font-size: 13px;
+}
+
+* {
+  border-color: #1a212b;
 }
 
 ::selection {
   background: #1f3550;
-  color: #e6e9ef;
+  color: #ffffff;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #1a212b;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #232b38;
+}
+
+@layer utilities {
+  .kbd {
+    @apply inline-flex items-center justify-center rounded border border-border bg-panel2 px-1.5 py-0.5 text-2xs font-mono text-mute2;
+  }
+  .chip {
+    @apply inline-flex items-center rounded-sm border border-border bg-panel2 px-1.5 py-0.5 text-2xs font-mono uppercase tracking-wider text-mute2;
+  }
+  .divider {
+    @apply border-t border-border;
+  }
+  .row-hover {
+    @apply hover:bg-panel2;
+  }
 }
