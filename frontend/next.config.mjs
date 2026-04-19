@@ -17,7 +17,10 @@ const nextConfig = {
   // (backend/ sibling, lockfiles at multiple levels) and without this
   // Next.js can walk up the tree during `Collecting build traces` and
   // either fail or bundle unrelated files.
-  outputFileTracingRoot: __dirname,
+  // In Next.js 14 this lives under `experimental`; promoted to top-level in 15.
+  experimental: {
+    outputFileTracingRoot: __dirname,
+  },
   async rewrites() {
     if (process.env.NODE_ENV === "production") return [];
     return [
