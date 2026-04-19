@@ -6,6 +6,7 @@ import { Briefing } from "./briefing";
 import { ActionQueue } from "./action-queue";
 import { ContextPanel } from "./context-panel";
 import { CommandBar } from "./command-bar";
+import { BifrostCore } from "./bifrost-core";
 
 export function Workspace() {
   return (
@@ -14,9 +15,10 @@ export function Workspace() {
         <TopBar />
         <div className="grid min-h-0 flex-1 grid-cols-[300px_1fr_360px]">
           <Briefing />
-          <ActionQueue />
+          <BifrostCore />
           <ContextPanel />
         </div>
+        <ActionQueue />
         <CommandBar />
       </div>
     </WorkspaceProvider>

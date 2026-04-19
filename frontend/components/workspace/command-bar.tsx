@@ -46,8 +46,8 @@ export function CommandBar() {
   const matches = text
     ? SUGGESTIONS.filter((s) =>
         s.toLowerCase().includes(text.toLowerCase()),
-      ).slice(0, 8)
-    : SUGGESTIONS.slice(0, 8);
+      ).slice(0, 10)
+    : SUGGESTIONS.slice(0, 10);
 
   const parsed = parseIntent(text);
 
@@ -59,16 +59,18 @@ export function CommandBar() {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-start justify-center bg-black/60 pt-[12vh]"
+      className="fixed inset-0 z-50 flex items-start justify-center bg-black/70 pt-[10vh] backdrop-blur-sm animate-fade-in"
       onClick={() => setPaletteOpen(false)}
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="w-[720px] max-w-[92vw] border border-border2 bg-panel shadow-2xl"
+        className="relative w-[820px] max-w-[94vw] border border-accent/40 bg-panel/95 shadow-glow glass-strong animate-slide-in-up"
       >
-        <div className="flex items-center gap-2 border-b border-border px-3 py-2">
-          <span className="font-mono text-2xs uppercase tracking-wider text-muted">
-            cmd
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-accent to-transparent" />
+
+        <div className="flex items-center gap-2 border-b border-border2 px-3 py-2.5">
+          <span className="font-mono text-2xs uppercase tracking-[0.3em] text-accent">
+            ▸ cmd
           </span>
           <input
             ref={inputRef}
@@ -101,30 +103,42 @@ export function CommandBar() {
 
         <div className="flex items-center gap-2 border-b border-border px-3 py-1 text-2xs font-mono uppercase tracking-wider text-muted">
           <span>parse:</span>
-          <span className="text-mute2">
+          <span className="text-accent">
             {parsed.class}
             {parsed.entity ? ` · ${parsed.entity}` : ""}
           </span>
-          {running && <span className="ml-auto text-blue">running…</span>}
+          {running && (
+            <span className="ml-auto flex items-center gap-1 text-accent">
+              <span className="inline-block h-1.5 w-1.5 animate-soft-pulse rounded-full bg-accent" />
+              transmitting…
+            </span>
+          )}
         </div>
 
         {!preview && (
-          <ul className="max-h-[40vh] overflow-y-auto py-1">
+          <ul className="max-h-[42vh] overflow-y-auto py-1">
             {matches.map((s, i) => (
               <li key={s}>
                 <button
                   onMouseEnter={() => setCursor(i)}
                   onClick={() => submit(s)}
-                  className={`flex w-full items-center justify-between px-3 py-1.5 text-left text-sm ${
+                  className={`flex w-full items-center justify-between px-3 py-1.5 text-left text-sm transition-colors ${
                     i === cursor
-                      ? "bg-panel2 text-inkhi"
+                      ? "bg-accent/10 text-inkhi"
                       : "text-mute2 hover:bg-panel2 hover:text-ink"
                   }`}
                 >
-                  <span className="font-mono">{s}</span>
-                  {i === cursor && (
-                    <span className="kbd">enter</span>
-                  )}
+                  <span className="flex items-center gap-2 font-mono">
+                    <span
+                      className={
+                        i === cursor ? "text-accent" : "text-muted"
+                      }
+                    >
+                      {i === cursor ? "▸" : "·"}
+                    </span>
+                    {s}
+                  </span>
+                  {i === cursor && <span className="kbd">enter</span>}
                 </button>
               </li>
             ))}
@@ -147,11 +161,11 @@ export function CommandBar() {
               <span className="kbd">tab</span> complete
             </span>
             <span>
-              <span className="kbd">enter</span> run
+              <span className="kbd">enter</span> execute
             </span>
           </div>
           {lastResponse && (
-            <span className="text-mute2">
+            <span className="text-accent/80">
               last: {lastResponse.classification.command_class} ·{" "}
               {lastResponse.duration_ms}ms
             </span>
@@ -187,12 +201,17 @@ function PreviewPanel({ response }: { response: CommandResponse }) {
   const { setPaletteOpen } = useWorkspace();
   const out = response.output;
   return (
-    <div className="max-h-[50vh] overflow-y-auto border-t border-border p-3 text-sm">
+    <div className="max-h-[52vh] overflow-y-auto border-t border-border p-3 text-sm animate-fade-in">
       <div className="flex items-center justify-between">
         <div>
-          <div className="text-2xs font-mono uppercase tracking-wider text-muted">
-            {response.classification.command_class} ·{" "}
-            {response.classification.confidence} · {response.duration_ms}ms
+          <div className="flex items-center gap-2 text-2xs font-mono uppercase tracking-wider text-muted">
+            <span className="text-accent">
+              {response.classification.command_class}
+            </span>
+            <span>·</span>
+            <span>{response.classification.confidence}</span>
+            <span>·</span>
+            <span>{response.duration_ms}ms</span>
           </div>
           <div className="mt-0.5 text-md font-semibold text-inkhi">
             {out.headline}
@@ -200,7 +219,7 @@ function PreviewPanel({ response }: { response: CommandResponse }) {
         </div>
         <button
           onClick={() => setPaletteOpen(false)}
-          className="border border-border2 px-2 py-1 font-mono text-2xs uppercase tracking-wider text-ink hover:border-blue hover:text-blue"
+          className="border border-border2 bg-panel2 px-2 py-1 font-mono text-2xs uppercase tracking-wider text-ink hover:border-accent hover:text-accent"
         >
           dismiss
         </button>
@@ -220,7 +239,7 @@ function OutputView({ output }: { output: CommandOutput }) {
         <div className="flex flex-col gap-2 text-sm">
           {output.key_insights.slice(0, 5).map((k, i) => (
             <div key={i} className="text-mute2">
-              · {k}
+              <span className="text-accent">·</span> {k}
             </div>
           ))}
           {output.next_actions.length > 0 && (
@@ -230,7 +249,7 @@ function OutputView({ output }: { output: CommandOutput }) {
               </div>
               {output.next_actions.map((n, i) => (
                 <div key={i} className="text-ink">
-                  → {n}
+                  <span className="text-accent">→</span> {n}
                 </div>
               ))}
             </div>
@@ -253,7 +272,7 @@ function OutputView({ output }: { output: CommandOutput }) {
                   {it.opportunity.firm_name ?? `Opp #${it.opportunity.id}`}
                 </span>
               </div>
-              <span className="font-mono text-2xs text-mute2">
+              <span className="font-mono text-2xs text-accent">
                 {Math.round(it.priority_score)}
               </span>
             </div>

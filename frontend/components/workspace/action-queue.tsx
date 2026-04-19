@@ -23,6 +23,7 @@ export function ActionQueue() {
   const [domain, setDomain] = useState<(typeof DOMAINS)[number]>("all");
   const [sort, setSort] = useState<SortKey>("priority");
   const [cursor, setCursor] = useState(0);
+  const [collapsed, setCollapsed] = useState(false);
   const listRef = useRef<HTMLDivElement>(null);
 
   const { data, isLoading, error, refetch } = useQuery({
@@ -101,39 +102,62 @@ export function ActionQueue() {
     return () => window.removeEventListener("keydown", onKey);
   }, [items, cursor, setSelected, runCommand]);
 
+  const criticalCount = items.filter((i) => i.priority_score >= 80).length;
+  const warnCount = items.filter(
+    (i) => i.priority_score >= 50 && i.priority_score < 80,
+  ).length;
+
   return (
-    <section className="flex h-full min-h-0 flex-col border-r border-border bg-bg">
-      <header className="flex items-center justify-between border-b border-border bg-panel px-3 py-2">
+    <section
+      className={`flex shrink-0 flex-col border-t border-accent/20 bg-panel/70 glass-strong transition-[height] duration-200 ${
+        collapsed ? "h-10" : "h-[280px]"
+      }`}
+    >
+      <header className="relative flex shrink-0 items-center justify-between border-b border-border/80 px-3 py-1.5">
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-accent/40 to-transparent" />
         <div className="flex items-center gap-3">
-          <h2 className="font-mono text-2xs uppercase tracking-widest text-mute2">
-            action queue
-          </h2>
+          <div className="flex items-center gap-2">
+            <span className="inline-block h-1.5 w-1.5 animate-soft-pulse rounded-full bg-accent" />
+            <h2 className="font-mono text-2xs uppercase tracking-[0.3em] text-accent">
+              execution queue
+            </h2>
+          </div>
           <span className="text-2xs text-muted">
             {items.length} {items.length === 1 ? "item" : "items"}
           </span>
+          {criticalCount > 0 && (
+            <span className="chip border-red/50 bg-red/10 text-red">
+              crit {criticalCount}
+            </span>
+          )}
+          {warnCount > 0 && (
+            <span className="chip border-amber/50 bg-amber/10 text-amber">
+              warn {warnCount}
+            </span>
+          )}
         </div>
         <div className="flex items-center gap-1">
           {DOMAINS.map((d) => (
             <button
               key={d}
               onClick={() => setDomain(d)}
-              className={`px-2 py-0.5 font-mono text-2xs uppercase tracking-wider ${
+              className={`px-2 py-0.5 font-mono text-2xs uppercase tracking-wider transition-colors ${
                 domain === d
-                  ? "border border-border2 bg-panel2 text-inkhi"
-                  : "text-muted hover:text-ink"
+                  ? "border border-accent/40 bg-accent/10 text-accent"
+                  : "border border-transparent text-muted hover:text-ink"
               }`}
             >
               {d}
             </button>
           ))}
-          <div className="ml-2 flex items-center gap-1 border-l border-border pl-2">
+          <div className="ml-2 flex items-center gap-1 border-l border-border2 pl-2">
             <span className="text-2xs text-muted">sort:</span>
             {(["priority", "due", "domain"] as SortKey[]).map((s) => (
               <button
                 key={s}
                 onClick={() => setSort(s)}
                 className={`px-1.5 py-0.5 font-mono text-2xs uppercase tracking-wider ${
-                  sort === s ? "text-inkhi" : "text-muted hover:text-ink"
+                  sort === s ? "text-accent" : "text-muted hover:text-ink"
                 }`}
               >
                 {s}
@@ -142,86 +166,96 @@ export function ActionQueue() {
           </div>
           <button
             onClick={() => refetch()}
-            className="ml-2 border border-border bg-panel2 px-1.5 py-0.5 font-mono text-2xs uppercase tracking-wider text-muted hover:text-ink"
+            className="ml-2 border border-border2 bg-panel2 px-1.5 py-0.5 font-mono text-2xs uppercase tracking-wider text-muted hover:border-accent hover:text-accent"
             title="Refresh"
           >
             refresh
           </button>
+          <button
+            onClick={() => setCollapsed((c) => !c)}
+            className="ml-1 border border-border2 bg-panel2 px-1.5 py-0.5 font-mono text-2xs uppercase tracking-wider text-muted hover:text-accent"
+          >
+            {collapsed ? "expand" : "collapse"}
+          </button>
         </div>
       </header>
 
-      <div ref={listRef} className="flex-1 overflow-y-auto">
-        {isLoading && (
-          <div className="p-4 text-sm text-muted">loading queue…</div>
-        )}
-        {!isLoading && error && (
-          <div className="p-4 text-sm">
-            <div className="font-mono text-2xs uppercase tracking-widest text-red">
-              action queue failed to load
-            </div>
-            <div className="mt-1 text-xs text-muted break-words">
-              {(error as Error).message}
-            </div>
-            <button
-              onClick={() => refetch()}
-              className="mt-2 border border-border2 bg-panel2 px-2 py-1 font-mono text-2xs uppercase tracking-wider text-ink hover:border-blue hover:text-blue"
-            >
-              retry
-            </button>
+      {!collapsed && (
+        <>
+          <div ref={listRef} className="flex-1 overflow-y-auto">
+            {isLoading && (
+              <div className="p-4 text-sm text-muted">loading queue…</div>
+            )}
+            {!isLoading && error && (
+              <div className="p-4 text-sm">
+                <div className="font-mono text-2xs uppercase tracking-widest text-red">
+                  action queue failed to load
+                </div>
+                <div className="mt-1 text-xs text-muted break-words">
+                  {(error as Error).message}
+                </div>
+                <button
+                  onClick={() => refetch()}
+                  className="mt-2 border border-border2 bg-panel2 px-2 py-1 font-mono text-2xs uppercase tracking-wider text-ink hover:border-accent hover:text-accent"
+                >
+                  retry
+                </button>
+              </div>
+            )}
+            {!isLoading && !error && items.length === 0 && (
+              <div className="p-4 text-sm text-muted">
+                queue clear · no actions
+              </div>
+            )}
+            {items.map((it, i) => (
+              <ActionRow
+                key={it.id}
+                item={it}
+                index={i}
+                active={i === cursor}
+                selected={selected?.id === it.id}
+                onFocus={() => setCursor(i)}
+                onOpen={() => openAction(it, setSelected)}
+                onDraft={() =>
+                  it.related_entity_id &&
+                  runCommand(
+                    `draft follow-up for opportunity ${it.related_entity_id}`,
+                  )
+                }
+                onBrief={() =>
+                  it.related_entity_id &&
+                  runCommand(
+                    `brief on ${it.related_entity_type} ${it.related_entity_id}`,
+                  )
+                }
+              />
+            ))}
           </div>
-        )}
-        {!isLoading && !error && items.length === 0 && (
-          <div className="p-4 text-sm text-muted">
-            queue clear · no actions
-          </div>
-        )}
-        {items.map((it, i) => (
-          <ActionRow
-            key={it.id}
-            item={it}
-            index={i}
-            active={i === cursor}
-            selected={selected?.id === it.id}
-            onFocus={() => setCursor(i)}
-            onOpen={() => openAction(it, setSelected)}
-            onDraft={() =>
-              it.related_entity_id &&
-              runCommand(
-                `draft follow-up for opportunity ${it.related_entity_id}`,
-              )
-            }
-            onBrief={() =>
-              it.related_entity_id &&
-              runCommand(
-                `brief on ${it.related_entity_type} ${it.related_entity_id}`,
-              )
-            }
-          />
-        ))}
-      </div>
 
-      <footer className="flex items-center justify-between border-t border-border bg-panel px-3 py-1 font-mono text-2xs uppercase tracking-wider text-muted">
-        <div className="flex items-center gap-3">
-          <span>
-            <span className="kbd">j/k</span> move
-          </span>
-          <span>
-            <span className="kbd">enter</span> open
-          </span>
-          <span>
-            <span className="kbd">d</span> draft
-          </span>
-          <span>
-            <span className="kbd">b</span> brief
-          </span>
-          <span>
-            <span className="kbd">⌘K</span> cmd
-          </span>
-        </div>
-        {data?.generated_at && (
-          <span>generated {fmtRelative(data.generated_at)}</span>
-        )}
-      </footer>
+          <footer className="flex shrink-0 items-center justify-between border-t border-border/80 bg-panel/60 px-3 py-1 font-mono text-2xs uppercase tracking-wider text-muted">
+            <div className="flex items-center gap-3">
+              <span>
+                <span className="kbd">j/k</span> move
+              </span>
+              <span>
+                <span className="kbd">enter</span> open
+              </span>
+              <span>
+                <span className="kbd">d</span> draft
+              </span>
+              <span>
+                <span className="kbd">b</span> brief
+              </span>
+              <span>
+                <span className="kbd">⌘K</span> cmd
+              </span>
+            </div>
+            {data?.generated_at && (
+              <span>generated {fmtRelative(data.generated_at)}</span>
+            )}
+          </footer>
+        </>
+      )}
     </section>
   );
 }
@@ -275,19 +309,36 @@ function ActionRow({
   useEffect(() => {
     if (active) ref.current?.scrollIntoView({ block: "nearest" });
   }, [active]);
+
+  const toneBar =
+    tone === "red"
+      ? "bg-red"
+      : tone === "amber"
+      ? "bg-amber"
+      : tone === "green"
+      ? "bg-green"
+      : "bg-accent";
+
+  const activeGlow = selected
+    ? "shadow-[inset_3px_0_0_0_rgba(34,211,238,1),0_0_16px_-4px_rgba(34,211,238,0.4)]"
+    : active
+    ? "shadow-[inset_3px_0_0_0_rgba(34,211,238,0.5)]"
+    : "";
+
   return (
     <div
       ref={ref}
       onMouseEnter={onFocus}
       onClick={onOpen}
-      className={`group grid cursor-pointer grid-cols-[24px_60px_80px_1fr_90px_auto] items-center gap-2 border-b border-border px-3 py-1.5 text-sm ${
+      className={`group relative grid cursor-pointer grid-cols-[4px_28px_72px_80px_1fr_90px_auto] items-center gap-2 border-b border-border/60 px-3 py-1.5 text-sm transition-colors ${
         selected
-          ? "bg-panel2 text-inkhi"
+          ? "bg-accent/10 text-inkhi"
           : active
-          ? "bg-panel text-ink"
-          : "text-mute2 hover:bg-panel"
-      }`}
+          ? "bg-panel2 text-ink"
+          : "text-mute2 hover:bg-panel2/60"
+      } ${activeGlow}`}
     >
+      <span className={`h-full w-0.5 ${toneBar} opacity-${selected ? 100 : active ? 70 : 40}`} />
       <span className="font-mono text-2xs text-muted">
         {String(index + 1).padStart(2, "0")}
       </span>
@@ -316,7 +367,7 @@ function ActionRow({
               e.stopPropagation();
               onDraft();
             }}
-            className="border border-border bg-panel2 px-1.5 py-0.5 font-mono text-2xs uppercase tracking-wider hover:border-blue hover:text-blue"
+            className="border border-border2 bg-panel2 px-1.5 py-0.5 font-mono text-2xs uppercase tracking-wider hover:border-accent hover:text-accent"
             title="Draft follow-up (d)"
           >
             draft
@@ -328,7 +379,7 @@ function ActionRow({
               e.stopPropagation();
               onBrief();
             }}
-            className="border border-border bg-panel2 px-1.5 py-0.5 font-mono text-2xs uppercase tracking-wider hover:border-blue hover:text-blue"
+            className="border border-border2 bg-panel2 px-1.5 py-0.5 font-mono text-2xs uppercase tracking-wider hover:border-accent hover:text-accent"
             title="Brief (b)"
           >
             brief
