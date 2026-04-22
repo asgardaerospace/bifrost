@@ -16,6 +16,7 @@ const DOMAINS = [
   "supplier",
   "approval",
   "engine",
+  "intel",
 ] as const;
 
 export function ActionQueue() {

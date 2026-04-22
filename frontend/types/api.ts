@@ -732,6 +732,112 @@ export interface PendingEngineWriteRead {
   updated_at: string;
 }
 
+// ----- Intelligence OS -----
+
+export type IntelCategory =
+  | "vc_funding"
+  | "defense_tech"
+  | "space_systems"
+  | "aerospace_manufacturing"
+  | "supply_chain"
+  | "policy_procurement"
+  | "competitor_move"
+  | "partner_signal"
+  | "supplier_signal"
+  | "uncategorized";
+
+export type IntelActionStatus =
+  | "pending"
+  | "acknowledged"
+  | "resolved"
+  | "dismissed";
+
+export interface IntelEntityRead {
+  id: number;
+  intel_item_id: number;
+  entity_type: string;
+  entity_name: string;
+  entity_id?: number | null;
+  role?: string | null;
+  created_at: string;
+}
+
+export interface IntelTagRead {
+  id: number;
+  intel_item_id: number;
+  tag: string;
+  created_at: string;
+}
+
+export interface IntelActionRead {
+  id: number;
+  intel_item_id: number;
+  action_type: string;
+  recommended_action: string;
+  status: IntelActionStatus;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface IntelItemRead {
+  id: number;
+  source: string;
+  title: string;
+  url?: string | null;
+  published_at?: string | null;
+  region?: string | null;
+  category: IntelCategory;
+  summary?: string | null;
+  strategic_relevance_score: number;
+  urgency_score: number;
+  confidence_score: number;
+  created_at: string;
+  updated_at: string;
+  entities: IntelEntityRead[];
+  tags: IntelTagRead[];
+  actions: IntelActionRead[];
+}
+
+export interface IntelTopSignals {
+  generated_at: string;
+  total: number;
+  items: IntelItemRead[];
+}
+
+export interface IntelCategoryBucket {
+  category: IntelCategory;
+  count: number;
+  items: IntelItemRead[];
+}
+
+export interface IntelByCategory {
+  generated_at: string;
+  total: number;
+  categories: IntelCategoryBucket[];
+}
+
+export interface IntelRegionBucket {
+  region: string;
+  count: number;
+  items: IntelItemRead[];
+}
+
+export interface IntelByRegion {
+  generated_at: string;
+  total: number;
+  regions: IntelRegionBucket[];
+}
+
+export interface IntelIngestionReport {
+  started_at: string;
+  finished_at: string;
+  provider_counts: Record<string, number>;
+  created: number;
+  updated: number;
+  skipped: number;
+  total_items_seen: number;
+}
+
 export interface ActivityEventRead {
   id: number;
   entity_type: string;

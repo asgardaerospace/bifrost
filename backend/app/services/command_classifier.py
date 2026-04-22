@@ -79,9 +79,40 @@ INTENT_PROGRAM_BY_STAGE = "program.by_stage"
 INTENT_PROGRAM_OVERDUE = "program.overdue"
 INTENT_PROGRAM_PIPELINE = "program.pipeline"
 
+# Intelligence OS intents
+INTENT_INTEL_TOP_SIGNALS = "intel.top_signals"
+INTENT_INTEL_NEWS_TODAY = "intel.news_today"
+INTENT_INTEL_VC_ACTIVITY = "intel.vc_activity"
+INTENT_INTEL_DEFENSE_FUNDING = "intel.defense_funding"
+INTENT_INTEL_TOP_MOVERS = "intel.top_movers"
+INTENT_INTEL_BY_REGION = "intel.by_region"
+INTENT_INTEL_BY_CATEGORY = "intel.by_category"
+INTENT_INTEL_WATCHLIST = "intel.watchlist"
+
 # Ordering matters: more specific intents first.
 INTENT_RULES: list[tuple[str, CommandClass, list[str]]] = [
     # (intent, class, keyword patterns — all terms must be present)
+    # --- intelligence os (must win over every domain rule) ---
+    (INTENT_INTEL_DEFENSE_FUNDING, "read", ["defense", "funding"]),
+    (INTENT_INTEL_DEFENSE_FUNDING, "read", ["latest", "defense"]),
+    (INTENT_INTEL_VC_ACTIVITY, "read", ["vc", "activity"]),
+    (INTENT_INTEL_VC_ACTIVITY, "read", ["aerospace", "vc"]),
+    (INTENT_INTEL_VC_ACTIVITY, "read", ["venture", "activity"]),
+    (INTENT_INTEL_TOP_MOVERS, "read", ["top", "movers"]),
+    (INTENT_INTEL_TOP_MOVERS, "read", ["movers", "aerospace"]),
+    (INTENT_INTEL_TOP_MOVERS, "read", ["movers", "defense"]),
+    (INTENT_INTEL_NEWS_TODAY, "read", ["news", "matters"]),
+    (INTENT_INTEL_NEWS_TODAY, "read", ["industry", "news"]),
+    (INTENT_INTEL_NEWS_TODAY, "read", ["what", "news"]),
+    (INTENT_INTEL_BY_REGION, "read", ["europe", "defense"]),
+    (INTENT_INTEL_BY_REGION, "read", ["asia", "signals"]),
+    (INTENT_INTEL_BY_REGION, "read", ["intel", "region"]),
+    (INTENT_INTEL_BY_CATEGORY, "read", ["intel", "category"]),
+    (INTENT_INTEL_WATCHLIST, "read", ["watchlist"]),
+    (INTENT_INTEL_TOP_SIGNALS, "read", ["top", "signals"]),
+    (INTENT_INTEL_TOP_SIGNALS, "read", ["strategic", "signals"]),
+    (INTENT_INTEL_TOP_SIGNALS, "read", ["intel", "signals"]),
+    (INTENT_INTEL_TOP_SIGNALS, "read", ["show", "intel"]),
     # --- graph intelligence (must win over every domain rule) ---
     (INTENT_GRAPH_RECOMMENDATIONS, "analyze", ["recommended", "actions"]),
     (INTENT_GRAPH_RECOMMENDATIONS, "analyze", ["show", "recommendations"]),
@@ -316,6 +347,7 @@ def classify(
         or intent.startswith("supplier.")
         or intent.startswith("executive.")
         or intent.startswith("graph.")
+        or intent.startswith("intel.")
     ):
         entity = None
     else:
@@ -333,6 +365,8 @@ def classify(
         domain = "executive"
     elif intent.startswith("graph."):
         domain = "graph"
+    elif intent.startswith("intel."):
+        domain = "intel"
     else:
         domain = "investor"
 

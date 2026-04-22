@@ -49,6 +49,7 @@ from app.schemas.executive import (
     DailyBriefing,
     ExecutiveMetrics,
 )
+from app.services import intel as intel_service
 from app.services import investor_agent as agent_service
 from app.services import market as market_service
 from app.services import pipeline as pipeline_service
@@ -399,6 +400,48 @@ def _actions_engine_writes(db: Session) -> list[ActionItem]:
     return out
 
 
+def _actions_intel_signals(db: Session) -> list[ActionItem]:
+    """Surface high-relevance intel items as executive action items.
+
+    Each pending IntelAction attached to a strategic_relevance >= threshold
+    intel item becomes one ActionItem. Priority is derived from the item's
+    strategic_relevance_score with urgency as a tiebreaker.
+    """
+    items = intel_service.top_signals(db, limit=25)
+    out: list[ActionItem] = []
+    for item in items:
+        # Only surface pending actions — acknowledged/resolved/dismissed
+        # items fall out of the queue on their own.
+        pending = [a for a in item.actions if a.status == "pending"]
+        if not pending:
+            continue
+        # One ActionItem per intel item (not per action) so the queue
+        # stays readable. Pick the strongest recommendation.
+        pick = pending[0]
+        priority = _clip(
+            item.strategic_relevance_score * 0.7
+            + item.urgency_score * 0.3
+        )
+        source_tag = item.source or "intel"
+        out.append(
+            ActionItem(
+                id=f"intel.{item.id}",
+                domain="intel",  # type: ignore[arg-type]
+                kind=f"intel.{item.category}",
+                title=item.title[:140],
+                description=pick.recommended_action,
+                priority_score=priority,
+                due_at=None,
+                status=pick.status,
+                related_entity_type="intel_item",
+                related_entity_id=item.id,
+                source_label=f"Intel · {source_tag}",
+                link_hint="/intel",
+            )
+        )
+    return out
+
+
 _REC_TYPE_TO_DOMAIN: dict[str, str] = {
     "investor_for_program": "capital",
     "supplier_for_program": "supplier",
@@ -454,6 +497,7 @@ def build_action_queue(
     collected.extend(_actions_supplier_onboarding(db))
     collected.extend(_actions_engine_writes(db))
     collected.extend(_actions_graph_recommendations(db))
+    collected.extend(_actions_intel_signals(db))
 
     # Dedupe by id — graph and native rules sometimes arrive at the same
     # finding (e.g. program_missing_supplier). Prefer the first producer.
@@ -720,6 +764,9 @@ def _metrics(db: Session) -> ExecutiveMetrics:
         ).scalars().all().__len__()
     )
 
+    # Intel
+    intel_counts = intel_service.counts_summary(db)
+
     return ExecutiveMetrics(
         capital_active=capital_summary.total_active,
         capital_overdue=capital_summary.overdue_follow_up_count,
@@ -741,6 +788,8 @@ def _metrics(db: Session) -> ExecutiveMetrics:
         suppliers_onboarded=supplier_summary["onboarded"],
         engine_writes_pending=engine_writes_pending,
         engine_writes_failed=engine_writes_failed,
+        intel_total=intel_counts.get("total", 0),
+        intel_top_signals=intel_counts.get("top_signals", 0),
     )
 
 
@@ -968,6 +1017,31 @@ def _section_graph_recommendations(db: Session) -> BriefingSection:
     )
 
 
+def _section_intel_top_signals(db: Session) -> BriefingSection:
+    rows = intel_service.top_signals(db, limit=5)
+    items = [
+        BriefingItem(
+            label=r.title[:120],
+            subtitle=f"{r.category} · {r.region or '—'}",
+            badge=f"s{r.strategic_relevance_score}",
+            related_entity_type="intel_item",
+            related_entity_id=r.id,
+            link_hint="/intel",
+        )
+        for r in rows
+    ]
+    return BriefingSection(
+        domain="intel",
+        title="Top industry signals",
+        headline=(
+            f"{len(rows)} high-relevance signal(s) "
+            "— venture activity, major movers, market shifts"
+        ),
+        count=len(rows),
+        items=items,
+    )
+
+
 def _section_approvals(db: Session) -> BriefingSection:
     rows = db.execute(
         select(Approval)
@@ -1060,6 +1134,11 @@ def _narrative(
         out.append(
             f"Approvals: {metrics.capital_pending_approvals} pending review."
         )
+    if metrics.intel_top_signals:
+        out.append(
+            f"Intel: {metrics.intel_top_signals} top industry signal(s) "
+            "to review."
+        )
     return out
 
 
@@ -1079,6 +1158,7 @@ def build_briefing(db: Session) -> DailyBriefing:
         _section_suppliers_onboarding(db),
         _section_suppliers_on_programs(db),
         _section_graph_recommendations(db),
+        _section_intel_top_signals(db),
         _section_approvals(db),
         _section_engine_writes(db),
     ]

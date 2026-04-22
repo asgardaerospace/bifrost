@@ -17,6 +17,7 @@ from sqlalchemy.orm import Session
 
 from app.integrations.investor_engine import drafts as engine_drafts
 from app.integrations.investor_engine import service as engine_service
+from app.services import intel as intel_service
 from app.services import market as market_service
 from app.services import program as program_service
 from app.services import supplier as supplier_service
@@ -50,6 +51,7 @@ from app.schemas.command_console import (
     ExecutiveActionQueueOutput,
     ExecutiveAlertsOutput,
     ExecutiveBriefingOutput,
+    IntelListOutput,
     GraphAccountProgramsOutput,
     GraphInvestorMatchesOutput,
     GraphInvestorProgramsOutput,
@@ -109,6 +111,14 @@ SUPPORTED_EXAMPLES = [
     "Which suppliers can support program <name>",
     "What accounts should we target",
     "Show recommended actions",
+    "What industry news matters today",
+    "Show top signals",
+    "Show aerospace VC activity this week",
+    "Show latest defense funding news",
+    "Show top movers in aerospace and defense",
+    "Show Europe defense signals",
+    "Show intel by category",
+    "Show watchlist signals",
 ]
 
 import re as _re
@@ -1207,6 +1217,202 @@ def _run_graph_accounts_to_target(db: Session) -> tuple[CommandOutput, str]:
 
 
 # ---------------------------------------------------------------------------
+# intelligence os handlers
+# ---------------------------------------------------------------------------
+
+
+def _intel_items_read(items) -> list:
+    from app.schemas.intel import IntelItemRead
+
+    return [IntelItemRead.model_validate(i) for i in items]
+
+
+def _run_intel_top_signals(db: Session) -> tuple[CommandOutput, str]:
+    items = intel_service.top_signals(db, limit=10)
+    return (
+        IntelListOutput(
+            headline=f"{len(items)} top strategic signal(s).",
+            kind="top_signals",
+            rationale=(
+                f"strategic_relevance_score ≥ "
+                f"{intel_service.TOP_SIGNAL_MIN_SCORE}, ordered by relevance "
+                "then urgency then recency."
+            ),
+            items=_intel_items_read(items),
+            counts={"total": len(items)},
+        ),
+        "completed",
+    )
+
+
+def _run_intel_news_today(db: Session) -> tuple[CommandOutput, str]:
+    items = intel_service.top_signals(db, limit=15)
+    return (
+        IntelListOutput(
+            headline=(
+                f"{len(items)} industry item(s) matter today "
+                "across venture, defense, and aerospace."
+            ),
+            kind="news_today",
+            rationale="Top-relevance intel items sorted by urgency and recency.",
+            items=_intel_items_read(items),
+            counts={"total": len(items)},
+        ),
+        "completed",
+    )
+
+
+def _run_intel_vc_activity(db: Session) -> tuple[CommandOutput, str]:
+    items = intel_service.list_intel_items(
+        db, category="vc_funding", limit=25
+    )
+    return (
+        IntelListOutput(
+            headline=f"{len(items)} VC activity signal(s).",
+            kind="vc_activity",
+            rationale="Items classified as vc_funding.",
+            items=_intel_items_read(items),
+            counts={"total": len(items)},
+        ),
+        "completed",
+    )
+
+
+def _run_intel_defense_funding(db: Session) -> tuple[CommandOutput, str]:
+    # Defense-funding is the intersection of defense_tech and vc_funding-
+    # style items. We surface both, prefer high-relevance.
+    defense = intel_service.list_intel_items(db, category="defense_tech", limit=25)
+    funding = intel_service.list_intel_items(db, category="vc_funding", limit=25)
+    merged: list = []
+    seen: set[int] = set()
+    for i in defense + funding:
+        if i.id in seen:
+            continue
+        seen.add(i.id)
+        merged.append(i)
+    merged.sort(
+        key=lambda r: (
+            -r.strategic_relevance_score,
+            -r.urgency_score,
+        )
+    )
+    return (
+        IntelListOutput(
+            headline=f"{len(merged)} defense-funding signal(s).",
+            kind="defense_funding",
+            rationale="Union of defense_tech and vc_funding categories.",
+            items=_intel_items_read(merged[:25]),
+            counts={
+                "defense_tech": len(defense),
+                "vc_funding": len(funding),
+                "total": len(merged),
+            },
+        ),
+        "completed",
+    )
+
+
+def _run_intel_top_movers(db: Session) -> tuple[CommandOutput, str]:
+    items = intel_service.list_intel_items(
+        db, tag="market-relevant", limit=25
+    )
+    return (
+        IntelListOutput(
+            headline=f"{len(items)} top mover signal(s) in aerospace and defense.",
+            kind="top_movers",
+            rationale=(
+                "Tagged market-relevant — acquisitions, partnerships, and "
+                "major-player moves."
+            ),
+            items=_intel_items_read(items),
+            counts={"total": len(items)},
+        ),
+        "completed",
+    )
+
+
+def _run_intel_by_region(
+    db: Session, raw_text: str
+) -> tuple[CommandOutput, str]:
+    lower = raw_text.lower()
+    region_filter: Optional[str] = None
+    for token, region in [
+        ("europe", "Europe"),
+        ("us ", "US"),
+        ("u.s.", "US"),
+        ("united states", "US"),
+        ("asia", "Asia-Pacific"),
+        ("pacific", "Asia-Pacific"),
+        ("middle east", "Middle East"),
+        ("global", "Global"),
+    ]:
+        if token in lower:
+            region_filter = region
+            break
+
+    if region_filter:
+        items = intel_service.list_intel_items(db, region=region_filter, limit=25)
+        return (
+            IntelListOutput(
+                headline=f"{len(items)} intel signal(s) from {region_filter}.",
+                kind="by_region",
+                rationale=f"Filter: region == {region_filter!r}.",
+                items=_intel_items_read(items),
+                counts={region_filter: len(items)},
+            ),
+            "completed",
+        )
+
+    grouped = intel_service.group_by_region(db, limit_per_region=5)
+    by_region = {
+        region: _intel_items_read(v) for region, v in grouped.items()
+    }
+    total = sum(len(v) for v in by_region.values())
+    return (
+        IntelListOutput(
+            headline=f"{total} intel signal(s) across {len(by_region)} region(s).",
+            kind="by_region",
+            rationale="All intel items grouped by detected region.",
+            by_region=by_region,
+            counts={"total": total, **{f"region.{k}": len(v) for k, v in by_region.items()}},
+        ),
+        "completed",
+    )
+
+
+def _run_intel_by_category(db: Session) -> tuple[CommandOutput, str]:
+    grouped = intel_service.group_by_category(db, limit_per_category=5)
+    by_category = {
+        cat: _intel_items_read(v) for cat, v in grouped.items()
+    }
+    total = sum(len(v) for v in by_category.values())
+    return (
+        IntelListOutput(
+            headline=f"{total} intel signal(s) across {len(by_category)} categor(ies).",
+            kind="by_category",
+            rationale="All intel items grouped by category.",
+            by_category=by_category,
+            counts={"total": total, **{f"cat.{k}": len(v) for k, v in by_category.items()}},
+        ),
+        "completed",
+    )
+
+
+def _run_intel_watchlist(db: Session) -> tuple[CommandOutput, str]:
+    items = intel_service.list_intel_items(db, tag="watchlist", limit=25)
+    return (
+        IntelListOutput(
+            headline=f"{len(items)} watchlist signal(s).",
+            kind="watchlist",
+            rationale="Tagged watchlist — key players Asgard is tracking.",
+            items=_intel_items_read(items),
+            counts={"total": len(items)},
+        ),
+        "completed",
+    )
+
+
+# ---------------------------------------------------------------------------
 # dispatcher
 # ---------------------------------------------------------------------------
 
@@ -1389,6 +1595,22 @@ def execute(db: Session, request: CommandRequest) -> CommandResponse:
     elif intent == classifier.INTENT_EXEC_INVESTOR_PRIORITIES:
         # Reuse the existing INTENT_PRIORITIZE path directly.
         output, status = _run_prioritize(db)
+    elif intent == classifier.INTENT_INTEL_TOP_SIGNALS:
+        output, status = _run_intel_top_signals(db)
+    elif intent == classifier.INTENT_INTEL_NEWS_TODAY:
+        output, status = _run_intel_news_today(db)
+    elif intent == classifier.INTENT_INTEL_VC_ACTIVITY:
+        output, status = _run_intel_vc_activity(db)
+    elif intent == classifier.INTENT_INTEL_DEFENSE_FUNDING:
+        output, status = _run_intel_defense_funding(db)
+    elif intent == classifier.INTENT_INTEL_TOP_MOVERS:
+        output, status = _run_intel_top_movers(db)
+    elif intent == classifier.INTENT_INTEL_BY_REGION:
+        output, status = _run_intel_by_region(db, request.text)
+    elif intent == classifier.INTENT_INTEL_BY_CATEGORY:
+        output, status = _run_intel_by_category(db)
+    elif intent == classifier.INTENT_INTEL_WATCHLIST:
+        output, status = _run_intel_watchlist(db)
     else:
         output, status = _unsupported(
             _UNSUPPORTED_REASONS.get(intent, "Unsupported intent.")

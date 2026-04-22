@@ -288,6 +288,13 @@ function actionButtonsFor(item: ActionItem): Array<{
   if (item.domain === "engine") {
     out.push({ label: "show engine writes", command: "list engine writes" });
   }
+  if (item.domain === "intel") {
+    out.push({ label: "show top signals", command: "show top signals" });
+    out.push({
+      label: "industry news",
+      command: "what industry news matters today",
+    });
+  }
   return out;
 }
 

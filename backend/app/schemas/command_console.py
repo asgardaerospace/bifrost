@@ -19,6 +19,7 @@ from app.schemas.graph import (
     ProgramSupplierMatches,
     RecommendationBundle,
 )
+from app.schemas.intel import IntelItemRead
 from app.schemas.investor_agent import (
     AgentPipelineSummary,
     InvestorBrief,
@@ -45,7 +46,13 @@ class CommandClassification(ORMModel):
     intent: str
     confidence: Literal["high", "medium", "low"]
     domain: Literal[
-        "investor", "market", "program", "supplier", "executive", "graph"
+        "investor",
+        "market",
+        "program",
+        "supplier",
+        "executive",
+        "graph",
+        "intel",
     ]
     referenced_entity: Optional[EntityRef] = None
     matched_keywords: list[str] = []
@@ -305,6 +312,26 @@ class GraphRecommendationsOutput(ORMModel):
     recommendations: RecommendationBundle
 
 
+class IntelListOutput(ORMModel):
+    output_type: Literal["intel_list"] = "intel_list"
+    headline: str
+    kind: Literal[
+        "top_signals",
+        "news_today",
+        "vc_activity",
+        "defense_funding",
+        "top_movers",
+        "by_region",
+        "by_category",
+        "watchlist",
+    ]
+    rationale: Optional[str] = None
+    items: list[IntelItemRead] = []
+    by_category: dict[str, list[IntelItemRead]] = {}
+    by_region: dict[str, list[IntelItemRead]] = {}
+    counts: dict[str, int] = {}
+
+
 class ClarificationOutput(ORMModel):
     output_type: Literal["clarification"] = "clarification"
     headline: str
@@ -338,6 +365,7 @@ CommandOutput = Union[
     GraphAccountProgramsOutput,
     GraphInvestorProgramsOutput,
     GraphRecommendationsOutput,
+    IntelListOutput,
     ClarificationOutput,
     UnsupportedOutput,
 ]

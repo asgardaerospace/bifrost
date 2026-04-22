@@ -22,6 +22,12 @@ import type {
   FollowUpDraftResponse,
   NormalizedInvestor,
   OpportunitySummary,
+  IntelActionRead,
+  IntelByCategory,
+  IntelByRegion,
+  IntelIngestionReport,
+  IntelItemRead,
+  IntelTopSignals,
 } from "@/types/api";
 
 export interface EngineDraftRequest {
@@ -424,6 +430,67 @@ export const api = {
       method: "POST",
       body: JSON.stringify(payload),
     }),
+
+  // --- intelligence os ---
+  listIntel: (
+    params: {
+      category?: string;
+      region?: string;
+      tag?: string;
+      min_score?: number;
+      limit?: number;
+    } = {},
+  ) => {
+    const qs = new URLSearchParams();
+    if (params.category) qs.set("category", params.category);
+    if (params.region) qs.set("region", params.region);
+    if (params.tag) qs.set("tag", params.tag);
+    if (params.min_score !== undefined)
+      qs.set("min_score", String(params.min_score));
+    qs.set("limit", String(params.limit ?? 50));
+    return request<IntelItemRead[]>(`/intel?${qs.toString()}`);
+  },
+
+  getIntel: (id: number) => request<IntelItemRead>(`/intel/${id}`),
+
+  intelTopSignals: (limit = 10) =>
+    request<IntelTopSignals>(`/intel/top-signals?limit=${limit}`),
+
+  intelByCategory: (limitPerCategory = 10) =>
+    request<IntelByCategory>(
+      `/intel/by-category?limit_per_category=${limitPerCategory}`,
+    ),
+
+  intelByRegion: (limitPerRegion = 10) =>
+    request<IntelByRegion>(
+      `/intel/by-region?limit_per_region=${limitPerRegion}`,
+    ),
+
+  intelSummary: () => request<Record<string, number>>(`/intel/summary`),
+
+  triggerIntelIngest: (actor = "ui") =>
+    request<IntelIngestionReport>(
+      `/intel/ingest?actor=${encodeURIComponent(actor)}`,
+      { method: "POST" },
+    ),
+
+  intelAckAction: (actionId: number, actor = "ui") =>
+    request<IntelActionRead>(
+      `/intel/actions/${actionId}/acknowledge?actor=${encodeURIComponent(actor)}`,
+      { method: "POST" },
+    ),
+
+  intelResolveAction: (actionId: number, actor = "ui") =>
+    request<IntelActionRead>(
+      `/intel/actions/${actionId}/resolve?actor=${encodeURIComponent(actor)}`,
+      { method: "POST" },
+    ),
+
+  intelDismissAction: (actionId: number, actor = "ui") =>
+    request<IntelActionRead>(
+      `/intel/actions/${actionId}/dismiss?actor=${encodeURIComponent(actor)}`,
+      { method: "POST" },
+    ),
 };
 
 export { ApiError };

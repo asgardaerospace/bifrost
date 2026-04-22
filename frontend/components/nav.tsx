@@ -11,6 +11,7 @@ const items = [
   { href: "/market", label: "Market" },
   { href: "/programs", label: "Programs" },
   { href: "/suppliers", label: "Suppliers" },
+  { href: "/intel", label: "Intelligence" },
   { href: "/approvals", label: "Approvals" },
   { href: "/engine-writes", label: "Engine Writes" },
   { href: "/create", label: "Create" },

@@ -8,7 +8,9 @@ from typing import Any, Literal, Optional
 from app.schemas.base import ORMModel
 
 
-Domain = Literal["capital", "market", "program", "supplier", "approval", "engine"]
+Domain = Literal[
+    "capital", "market", "program", "supplier", "approval", "engine", "intel"
+]
 Severity = Literal["info", "warn", "critical"]
 
 
@@ -99,6 +101,8 @@ class ExecutiveMetrics(ORMModel):
     suppliers_onboarded: int = 0
     engine_writes_pending: int = 0
     engine_writes_failed: int = 0
+    intel_total: int = 0
+    intel_top_signals: int = 0
 
 
 class DailyBriefing(ORMModel):

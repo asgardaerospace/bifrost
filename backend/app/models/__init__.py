@@ -30,6 +30,12 @@ from app.models.supplier import (
 )
 from app.integrations.investor_engine.models import InvestorEngineSnapshot
 from app.integrations.investor_engine.writes_models import PendingEngineWrite
+from app.models.intel import (
+    IntelAction,
+    IntelEntity,
+    IntelItem,
+    IntelTag,
+)
 
 __all__ = [
     "Base",
@@ -61,4 +67,8 @@ __all__ = [
     "SupplierCapability",
     "SupplierCertification",
     "ProgramSupplier",
+    "IntelItem",
+    "IntelEntity",
+    "IntelTag",
+    "IntelAction",
 ]
