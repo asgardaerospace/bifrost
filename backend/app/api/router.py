@@ -22,6 +22,7 @@ from app.api.routes import (
     tags,
     graph,
     intel,
+    obsidian,
 )
 
 api_router = APIRouter()
@@ -53,3 +54,4 @@ api_router.include_router(suppliers.router, tags=["suppliers"])
 api_router.include_router(executive.router, tags=["executive"])
 api_router.include_router(graph.router, tags=["graph"])
 api_router.include_router(intel.router, tags=["intel"])
+api_router.include_router(obsidian.router)
