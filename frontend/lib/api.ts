@@ -77,6 +77,14 @@ import type {
   RecommendationGenerationReport,
   RecommendationRead,
   SimulationResultRead,
+  // Sprint 6 — governed agent coordination + workflow trace
+  AgentDescriptorRead,
+  AgentRunReport,
+  AgentRunRequest,
+  AutonomyOperationRead,
+  ProposedActionDecision,
+  ProposedActionRead,
+  WorkflowTraceRead,
 } from "@/types/api";
 
 export interface EngineDraftRequest {
@@ -945,6 +953,66 @@ export const api = {
 
   presenceForMission: (missionId: number) =>
     request<PresenceList>(`/presence/mission/${missionId}`),
+
+  // -- Sprint 6: governed agent coordination -------------------------------
+  listAgents: () => request<AgentDescriptorRead[]>(`/agents`),
+
+  getAgent: (name: string) =>
+    request<AgentDescriptorRead>(`/agents/${encodeURIComponent(name)}`),
+
+  runAgent: (name: string, payload: AgentRunRequest = {}) =>
+    request<AgentRunReport>(`/agents/${encodeURIComponent(name)}/run`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+
+  listAgentRuns: (params: {
+    agent_name?: string;
+    status?: string;
+    mission_id?: number;
+    limit?: number;
+  } = {}) => {
+    const qs = new URLSearchParams();
+    if (params.agent_name) qs.set("agent_name", params.agent_name);
+    if (params.status) qs.set("status", params.status);
+    if (params.mission_id !== undefined)
+      qs.set("mission_id", String(params.mission_id));
+    if (params.limit) qs.set("limit", String(params.limit));
+    const tail = qs.toString();
+    return request<AutonomyOperationRead[]>(
+      `/agent-runs${tail ? `?${tail}` : ""}`,
+    );
+  },
+
+  getAgentRunTrace: (operationId: number) =>
+    request<WorkflowTraceRead>(`/agent-runs/${operationId}`),
+
+  cancelAgentRun: (operationId: number) =>
+    request<AutonomyOperationRead>(`/agent-runs/${operationId}/cancel`, {
+      method: "POST",
+    }),
+
+  listProposedActions: (params: {
+    status?: string;
+    operation_id?: number;
+    limit?: number;
+  } = {}) => {
+    const qs = new URLSearchParams();
+    if (params.status) qs.set("status", params.status);
+    if (params.operation_id !== undefined)
+      qs.set("operation_id", String(params.operation_id));
+    if (params.limit) qs.set("limit", String(params.limit));
+    const tail = qs.toString();
+    return request<ProposedActionRead[]>(
+      `/proposed-actions${tail ? `?${tail}` : ""}`,
+    );
+  },
+
+  decideProposedAction: (actionId: number, payload: ProposedActionDecision) =>
+    request<ProposedActionRead>(`/proposed-actions/${actionId}/decide`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
 
   graphPropagation: (params: {
     source_type: string;

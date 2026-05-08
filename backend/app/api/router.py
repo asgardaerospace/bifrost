@@ -36,6 +36,7 @@ from app.api.routes import (
     signals as sprint4_signals,
     executive_brief as sprint4_exec_brief,
     cognition as sprint5_cognition,
+    agents as sprint6_agents,
 )
 
 api_router = APIRouter()
@@ -91,3 +92,6 @@ api_router.include_router(sprint4_exec_brief.router, tags=["intelligence-brief"]
 
 # Sprint 5 — cognition + recommendations + simulation + drafting.
 api_router.include_router(sprint5_cognition.router, tags=["cognition"])
+
+# Sprint 6 — governed autonomous coordination (agents + workflow trace).
+api_router.include_router(sprint6_agents.router, tags=["agents"])

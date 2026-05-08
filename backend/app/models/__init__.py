@@ -47,6 +47,7 @@ from app.models.presence import PresenceSession
 from app.models.memory import MemoryRecord, SemanticChunk
 from app.models.signal import SignalImpact, SignalRelevance
 from app.models.recommendation import Recommendation
+from app.models.agent_workflow import AgentWorkflowStage
 
 __all__ = [
     "Base",
@@ -98,4 +99,5 @@ __all__ = [
     "SignalRelevance",
     "SignalImpact",
     "Recommendation",
+    "AgentWorkflowStage",
 ]

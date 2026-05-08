@@ -1498,6 +1498,103 @@ export interface RelatedMissionsResponse {
   trace: RetrievalTraceRead;
 }
 
+// =============================================================================
+// Sprint 6 — governed autonomous coordination (agents + workflow trace)
+// =============================================================================
+
+export interface AgentDescriptorRead {
+  name: string;
+  version: string;
+  purpose: string;
+  allowed_actions: string[];
+  required_approvals: string[];
+  accessible_domains: string[];
+  confidence_threshold: number;
+  workflow_key: string;
+  stages: string[];
+  escalation_rules: string[];
+}
+
+export interface AgentRunRequest {
+  trigger?: string;
+  mission_id?: number | null;
+  propagate_handoffs?: boolean;
+}
+
+export interface AgentRunReport {
+  operation_id: number;
+  agent_name: string;
+  workflow_key: string;
+  final_status: "proposed" | "weak" | "failed" | "cancelled" | string;
+  confidence: number;
+  stage_count: number;
+  proposed_action_count: number;
+  error?: string | null;
+  handoff_runs: number[];
+}
+
+export interface AutonomyOperationRead {
+  id: number;
+  agent_name: string;
+  operation_type: string;
+  mission_id?: number | null;
+  status: string;
+  confidence_score: number;
+  reasoning?: string | null;
+  retrieval_citations?: Record<string, unknown> | null;
+  payload?: Record<string, unknown> | null;
+  proposed_at: string;
+  decided_at?: string | null;
+  executed_at?: string | null;
+  decided_by_user_id?: number | null;
+  trigger?: string | null;
+  workflow_key?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AgentWorkflowStageRead {
+  id: number;
+  autonomy_operation_id: number;
+  stage_index: number;
+  stage_name: string;
+  status: string;
+  started_at?: string | null;
+  completed_at?: string | null;
+  input_payload?: Record<string, unknown> | null;
+  output_payload?: Record<string, unknown> | null;
+  retrieval_trace?: Record<string, unknown> | null;
+  confidence?: number | null;
+  error?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface WorkflowTraceRead {
+  operation: AutonomyOperationRead;
+  stages: AgentWorkflowStageRead[];
+  proposed_action_count: number;
+}
+
+export interface ProposedActionRead {
+  id: number;
+  autonomy_operation_id: number;
+  action_type: string;
+  target_entity_type?: string | null;
+  target_entity_id?: number | null;
+  payload?: Record<string, unknown> | null;
+  status: string;
+  requires_approval: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ProposedActionDecision {
+  decision: "approved" | "rejected";
+  decided_by?: string | null;
+  note?: string | null;
+}
+
 // Server → client websocket frames (subset).
 export type WSFrame =
   | { type: "hello"; client_id: string }

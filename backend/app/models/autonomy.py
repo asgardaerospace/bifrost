@@ -29,6 +29,10 @@ class AutonomyOperation(Base, TimestampMixin):
     confidence_score: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     reasoning: Mapped[Optional[str]] = mapped_column(Text)
     retrieval_citations: Mapped[Optional[dict[str, Any]]] = mapped_column(JSONB)
+
+    # Sprint 6 — provenance for the workflow run.
+    trigger: Mapped[Optional[str]] = mapped_column(String(128))
+    workflow_key: Mapped[Optional[str]] = mapped_column(String(64), index=True)
     payload: Mapped[Optional[dict[str, Any]]] = mapped_column(JSONB)
 
     proposed_at: Mapped[datetime] = mapped_column(
