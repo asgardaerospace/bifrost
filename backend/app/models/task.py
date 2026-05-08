@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Optional
 
-from sqlalchemy import DateTime, Integer, String, Text
+from sqlalchemy import DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import Base, TimestampMixin
@@ -22,5 +22,9 @@ class Task(Base, TimestampMixin):
     assignee: Mapped[Optional[str]] = mapped_column(String(255))
     due_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
     completed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+
+    mission_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("missions.id", ondelete="SET NULL"), index=True
+    )
 
     deleted_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))

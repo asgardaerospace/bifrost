@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Optional
 
-from sqlalchemy import DateTime, Integer, String, Text
+from sqlalchemy import DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import Base, TimestampMixin
@@ -32,3 +32,7 @@ class Communication(Base, TimestampMixin):
     # optional: native Bifrost drafts leave both fields null.
     source_system: Mapped[Optional[str]] = mapped_column(String(64), index=True)
     source_external_id: Mapped[Optional[str]] = mapped_column(String(128), index=True)
+
+    mission_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("missions.id", ondelete="SET NULL"), index=True
+    )

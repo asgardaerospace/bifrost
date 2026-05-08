@@ -36,6 +36,17 @@ from app.models.intel import (
     IntelItem,
     IntelTag,
 )
+from app.models.user import User, UserRole
+from app.models.mission import Mission, MissionEntity
+from app.models.relationship import Relationship
+from app.models.operational_event import OperationalEvent
+from app.models.execution_queue import ExecutionQueueItem
+from app.models.autonomy import AutonomyOperation, ProposedAction
+from app.models.pressure_snapshot import MissionPressureSnapshot
+from app.models.presence import PresenceSession
+from app.models.memory import MemoryRecord, SemanticChunk
+from app.models.signal import SignalImpact, SignalRelevance
+from app.models.recommendation import Recommendation
 
 __all__ = [
     "Base",
@@ -71,4 +82,20 @@ __all__ = [
     "IntelEntity",
     "IntelTag",
     "IntelAction",
+    "User",
+    "UserRole",
+    "Mission",
+    "MissionEntity",
+    "Relationship",
+    "OperationalEvent",
+    "ExecutionQueueItem",
+    "AutonomyOperation",
+    "ProposedAction",
+    "MissionPressureSnapshot",
+    "PresenceSession",
+    "MemoryRecord",
+    "SemanticChunk",
+    "SignalRelevance",
+    "SignalImpact",
+    "Recommendation",
 ]

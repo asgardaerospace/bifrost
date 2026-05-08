@@ -124,6 +124,10 @@ class IntelItem(Base, TimestampMixin):
         Integer, nullable=False, default=0
     )
 
+    mission_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("missions.id", ondelete="SET NULL"), index=True
+    )
+
     entities: Mapped[List["IntelEntity"]] = relationship(
         back_populates="intel_item", cascade="all, delete-orphan"
     )

@@ -69,6 +69,10 @@ class InvestorOpportunity(Base, TimestampMixin):
     probability_score: Mapped[Optional[int]] = mapped_column(Integer)
     strategic_value_score: Mapped[Optional[int]] = mapped_column(Integer)
 
+    mission_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("missions.id", ondelete="SET NULL"), index=True
+    )
+
     deleted_at: Mapped[Optional[datetime]] = mapped_column()
 
     firm: Mapped["InvestorFirm"] = relationship(back_populates="opportunities")

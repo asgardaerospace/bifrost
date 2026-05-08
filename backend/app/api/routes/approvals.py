@@ -11,8 +11,10 @@ from app.integrations.investor_engine import writes_service as engine_writes_ser
 from app.models.approval import Approval
 from app.models.communication import Communication
 from app.schemas.approval import ApprovalDecisionInput, ApprovalRead
+from app.schemas.operational_event import OperationalEventCreate
 from app.services import approvals as approvals_service
 from app.services import communications as comm_service
+from app.services import events as events_service
 
 router = APIRouter()
 
@@ -90,12 +92,26 @@ def approve(
         db.refresh(approval)
         return approval
 
-    return approvals_service.approve_send(
+    result = approvals_service.approve_send(
         db,
         approval_id,
         reviewer=payload.reviewer,
         decision_note=payload.decision_note,
     )
+    events_service.publish(
+        db,
+        OperationalEventCreate(
+            topic="approvals",
+            event_type="approval.approved",
+            entity_type=result.entity_type,
+            entity_id=result.entity_id,
+            actor=payload.reviewer,
+            severity="notice",
+            payload={"approval_id": result.id, "action": result.action},
+        ),
+    )
+    db.commit()
+    return result
 
 
 @router.post("/{approval_id}/reject", response_model=ApprovalRead)
@@ -114,9 +130,23 @@ def reject(
             decision_note=payload.decision_note,
         )
 
-    return approvals_service.reject_send(
+    result = approvals_service.reject_send(
         db,
         approval_id,
         reviewer=payload.reviewer,
         decision_note=payload.decision_note,
     )
+    events_service.publish(
+        db,
+        OperationalEventCreate(
+            topic="approvals",
+            event_type="approval.rejected",
+            entity_type=result.entity_type,
+            entity_id=result.entity_id,
+            actor=payload.reviewer,
+            severity="warning",
+            payload={"approval_id": result.id, "action": result.action},
+        ),
+    )
+    db.commit()
+    return result

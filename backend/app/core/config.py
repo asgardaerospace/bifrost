@@ -23,6 +23,11 @@ class Settings(BaseSettings):
     jwt_algorithm: str = "HS256"
     jwt_expire_minutes: int = 60
 
+    # Sprint 1 — when False (default) routes accept anonymous requests and
+    # current_user resolves to a synthetic anonymous operator. When True,
+    # protected routes require a valid bearer token.
+    auth_enforcement_enabled: bool = False
+
     # NoDecode prevents pydantic-settings from JSON-parsing the env value
     # so our @field_validator can split a plain comma-separated string.
     cors_origins: Annotated[List[str], NoDecode] = Field(default_factory=list)

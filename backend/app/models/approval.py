@@ -25,3 +25,7 @@ class Approval(Base, TimestampMixin):
     reviewer: Mapped[Optional[str]] = mapped_column(String(255))
     reviewed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
     decision_note: Mapped[Optional[str]] = mapped_column(Text)
+
+    mission_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("missions.id", ondelete="SET NULL"), index=True
+    )

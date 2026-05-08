@@ -28,6 +28,55 @@ import type {
   IntelIngestionReport,
   IntelItemRead,
   IntelTopSignals,
+  // Sprint 0 — canonical operational core
+  ExecutionQueue,
+  ExecutionQueueItemCreate,
+  ExecutionQueueItemRead,
+  ExecutionQueueItemUpdate,
+  MissionCreate,
+  MissionDependencies,
+  MissionEntityCreate,
+  MissionEntityRead,
+  MissionPressure,
+  MissionRead,
+  MissionTimeline,
+  MissionUpdate,
+  OperationalEventCreate,
+  OperationalEventRead,
+  OperationalEventStream,
+  PropagationView,
+  RelationshipCreate,
+  RelationshipRead,
+  // Sprint 1 — auth
+  CurrentUserRead,
+  LoginRequest,
+  TokenResponse,
+  UserCreate,
+  UserRead,
+  // Sprint 2 — pressure history + presence
+  PressureHistory,
+  PressureSnapshotRead,
+  PresenceList,
+  // Sprint 3 — memory + retrieval + RAG
+  MemoryRecordRead,
+  RelatedMissionsResponse,
+  SearchQuery,
+  SearchResponse,
+  SynthesisResponseRead,
+  // Sprint 4 — intelligence signals + relevance + executive brief
+  IngestionReportRead,
+  MissionSignalsResponse,
+  SignalImpactRead,
+  SignalRelevanceRead,
+  SignalSummaryRead,
+  // Sprint 5 — cognition + recommendations + simulation
+  CognitionCommandRequest,
+  CognitionResponseRead,
+  IntentDescriptor,
+  RecommendationDecision,
+  RecommendationGenerationReport,
+  RecommendationRead,
+  SimulationResultRead,
 } from "@/types/api";
 
 export interface EngineDraftRequest {
@@ -491,6 +540,432 @@ export const api = {
       `/intel/actions/${actionId}/dismiss?actor=${encodeURIComponent(actor)}`,
       { method: "POST" },
     ),
+
+  // ===========================================================================
+  // Sprint 0 — canonical operational core
+  // ===========================================================================
+
+  // -- Missions -------------------------------------------------------------
+  listMissions: (params: {
+    status?: string;
+    priority?: string;
+    owner_user_id?: number;
+  } = {}) => {
+    const qs = new URLSearchParams();
+    if (params.status) qs.set("status", params.status);
+    if (params.priority) qs.set("priority", params.priority);
+    if (params.owner_user_id !== undefined)
+      qs.set("owner_user_id", String(params.owner_user_id));
+    const tail = qs.toString();
+    return request<MissionRead[]>(`/missions${tail ? `?${tail}` : ""}`);
+  },
+
+  getMission: (id: number) => request<MissionRead>(`/missions/${id}`),
+
+  createMission: (payload: MissionCreate) =>
+    request<MissionRead>("/missions", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+
+  updateMission: (id: number, payload: MissionUpdate) =>
+    request<MissionRead>(`/missions/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    }),
+
+  deleteMission: (id: number) =>
+    request<void>(`/missions/${id}`, { method: "DELETE" }),
+
+  missionPressure: (id: number) =>
+    request<MissionPressure>(`/missions/${id}/pressure`),
+
+  missionDependencies: (id: number) =>
+    request<MissionDependencies>(`/missions/${id}/dependencies`),
+
+  missionTimeline: (id: number, limit = 200) =>
+    request<MissionTimeline>(`/missions/${id}/timeline?limit=${limit}`),
+
+  missionEntities: (id: number) =>
+    request<MissionEntityRead[]>(`/missions/${id}/entities`),
+
+  linkMissionEntity: (id: number, payload: MissionEntityCreate) =>
+    request<MissionEntityRead>(`/missions/${id}/entities`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+
+  unlinkMissionEntity: (missionId: number, linkId: number) =>
+    request<void>(`/missions/${missionId}/entities/${linkId}`, {
+      method: "DELETE",
+    }),
+
+  // -- Execution queue ------------------------------------------------------
+  executionQueue: (params: {
+    mission_id?: number;
+    status?: string;
+    item_type?: string[];
+    limit?: number;
+  } = {}) => {
+    const qs = new URLSearchParams();
+    if (params.mission_id !== undefined)
+      qs.set("mission_id", String(params.mission_id));
+    if (params.status) qs.set("status", params.status);
+    if (params.item_type) {
+      for (const t of params.item_type) qs.append("item_type", t);
+    }
+    if (params.limit) qs.set("limit", String(params.limit));
+    const tail = qs.toString();
+    return request<ExecutionQueue>(
+      `/execution/queue${tail ? `?${tail}` : ""}`,
+    );
+  },
+
+  executionBlockers: (mission_id?: number) =>
+    request<ExecutionQueue>(
+      `/execution/blockers${mission_id !== undefined ? `?mission_id=${mission_id}` : ""}`,
+    ),
+
+  executionPendingApprovals: (mission_id?: number) =>
+    request<ExecutionQueue>(
+      `/execution/approvals${mission_id !== undefined ? `?mission_id=${mission_id}` : ""}`,
+    ),
+
+  createExecutionItem: (payload: ExecutionQueueItemCreate) =>
+    request<ExecutionQueueItemRead>("/execution/actions", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+
+  updateExecutionItem: (id: number, payload: ExecutionQueueItemUpdate) =>
+    request<ExecutionQueueItemRead>(`/execution/actions/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    }),
+
+  // -- Operational events ---------------------------------------------------
+  events: (params: {
+    since?: number;
+    topic?: string;
+    mission_id?: number;
+    severity?: string;
+    limit?: number;
+  } = {}) => {
+    const qs = new URLSearchParams();
+    if (params.since !== undefined) qs.set("since", String(params.since));
+    if (params.topic) qs.set("topic", params.topic);
+    if (params.mission_id !== undefined)
+      qs.set("mission_id", String(params.mission_id));
+    if (params.severity) qs.set("severity", params.severity);
+    if (params.limit) qs.set("limit", String(params.limit));
+    const tail = qs.toString();
+    return request<OperationalEventStream>(
+      `/events${tail ? `?${tail}` : ""}`,
+    );
+  },
+
+  publishEvent: (payload: OperationalEventCreate) =>
+    request<OperationalEventRead>("/events", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+
+  // -- Relationships --------------------------------------------------------
+  listRelationships: (params: {
+    source_type?: string;
+    source_id?: number;
+    target_type?: string;
+    target_id?: number;
+    relationship_type?: string;
+    either_side?: boolean;
+    limit?: number;
+  } = {}) => {
+    const qs = new URLSearchParams();
+    if (params.source_type) qs.set("source_type", params.source_type);
+    if (params.source_id !== undefined)
+      qs.set("source_id", String(params.source_id));
+    if (params.target_type) qs.set("target_type", params.target_type);
+    if (params.target_id !== undefined)
+      qs.set("target_id", String(params.target_id));
+    if (params.relationship_type)
+      qs.set("relationship_type", params.relationship_type);
+    if (params.either_side) qs.set("either_side", "true");
+    if (params.limit) qs.set("limit", String(params.limit));
+    const tail = qs.toString();
+    return request<RelationshipRead[]>(
+      `/graph/relationships${tail ? `?${tail}` : ""}`,
+    );
+  },
+
+  createRelationship: (payload: RelationshipCreate) =>
+    request<RelationshipRead>("/graph/relationships", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+
+  deleteRelationship: (id: number) =>
+    request<void>(`/graph/relationships/${id}`, { method: "DELETE" }),
+
+  // -- Auth ----------------------------------------------------------------
+  authMe: () => request<CurrentUserRead>("/auth/me"),
+
+  authLogin: (payload: LoginRequest) =>
+    request<TokenResponse>("/auth/login", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+
+  authRegister: (payload: UserCreate) =>
+    request<UserRead>("/auth/register", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+
+  // -- Mission entities (grouped) ------------------------------------------
+  missionEntitiesGrouped: (id: number) =>
+    request<Record<string, MissionEntityRead[]>>(
+      `/missions/${id}/entities/grouped`,
+    ),
+
+  // -- Approval lifecycle on queue items -----------------------------------
+  requestQueueItemApproval: (itemId: number) =>
+    request<{ id: number; status: string; entity_type: string; entity_id: number; action: string }>(
+      `/execution/actions/${itemId}/request-approval`,
+      { method: "POST" },
+    ),
+
+  decideQueueItemApproval: (
+    itemId: number,
+    decision: "approved" | "rejected",
+    note?: string,
+  ) => {
+    const qs = new URLSearchParams({ decision });
+    if (note) qs.set("note", note);
+    return request<{ id: number; status: string }>(
+      `/execution/actions/${itemId}/decide?${qs.toString()}`,
+      { method: "POST" },
+    );
+  },
+
+  // -- Cognition pipeline (Sprint 5) ---------------------------------------
+  cognitionCommand: (payload: CognitionCommandRequest) =>
+    request<CognitionResponseRead>("/cognition/command", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+
+  cognitionIntents: () =>
+    request<IntentDescriptor[]>("/cognition/intents"),
+
+  // -- Recommendations (Sprint 5) ------------------------------------------
+  regenerateRecommendations: () =>
+    request<RecommendationGenerationReport>("/recommendations/regenerate", {
+      method: "POST",
+    }),
+
+  listRecommendations: (params: {
+    mission_id?: number;
+    status?: string;
+    recommendation_type?: string;
+    limit?: number;
+  } = {}) => {
+    const qs = new URLSearchParams();
+    if (params.mission_id !== undefined)
+      qs.set("mission_id", String(params.mission_id));
+    if (params.status) qs.set("status", params.status);
+    if (params.recommendation_type)
+      qs.set("recommendation_type", params.recommendation_type);
+    if (params.limit) qs.set("limit", String(params.limit));
+    const tail = qs.toString();
+    return request<RecommendationRead[]>(
+      `/recommendations${tail ? `?${tail}` : ""}`,
+    );
+  },
+
+  missionRecommendations: (missionId: number, status?: string) => {
+    const qs = status ? `?status=${status}` : "";
+    return request<RecommendationRead[]>(
+      `/missions/${missionId}/recommendations${qs}`,
+    );
+  },
+
+  decideRecommendation: (recId: number, payload: RecommendationDecision) =>
+    request<RecommendationRead>(`/recommendations/${recId}/decide`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+
+  // -- Simulations (Sprint 5) ----------------------------------------------
+  simulateSupplierFailure: (supplier_id: number) =>
+    request<SimulationResultRead>("/simulations/supplier-failure", {
+      method: "POST",
+      body: JSON.stringify({ supplier_id }),
+    }),
+
+  simulateApprovalDelay: (approval_id: number, delay_hours = 48) =>
+    request<SimulationResultRead>("/simulations/approval-delay", {
+      method: "POST",
+      body: JSON.stringify({ approval_id, delay_hours }),
+    }),
+
+  simulateDependencyPropagation: (
+    entity_type: string,
+    entity_id: number,
+    depth = 2,
+  ) =>
+    request<SimulationResultRead>("/simulations/dependency-propagation", {
+      method: "POST",
+      body: JSON.stringify({ entity_type, entity_id, depth }),
+    }),
+
+  // -- Drafting (Sprint 5) -------------------------------------------------
+  draftExecutiveSummary: (mission_id: number) =>
+    request<SynthesisResponseRead>("/drafting/executive-summary", {
+      method: "POST",
+      body: JSON.stringify({ mission_id }),
+    }),
+
+  draftEscalationBrief: (mission_id: number, hours = 48) =>
+    request<SynthesisResponseRead>("/drafting/escalation-brief", {
+      method: "POST",
+      body: JSON.stringify({ mission_id, hours }),
+    }),
+
+  // -- Intelligence signals (Sprint 4) -------------------------------------
+  triggerIntelligenceIngest: (provider = "aerospace_seed", actor = "operator") =>
+    request<IngestionReportRead>("/intelligence/ingest", {
+      method: "POST",
+      body: JSON.stringify({ provider, actor }),
+    }),
+
+  listIntelligenceSignals: (params: {
+    signal_type?: string;
+    severity?: string;
+    region?: string;
+    limit?: number;
+  } = {}) => {
+    const qs = new URLSearchParams();
+    if (params.signal_type) qs.set("signal_type", params.signal_type);
+    if (params.severity) qs.set("severity", params.severity);
+    if (params.region) qs.set("region", params.region);
+    if (params.limit) qs.set("limit", String(params.limit));
+    const tail = qs.toString();
+    return request<SignalSummaryRead[]>(
+      `/intelligence/signals${tail ? `?${tail}` : ""}`,
+    );
+  },
+
+  getIntelligenceSignal: (id: number) =>
+    request<SignalSummaryRead>(`/intelligence/signals/${id}`),
+
+  signalRelevance: (id: number) =>
+    request<SignalRelevanceRead[]>(`/intelligence/signals/${id}/relevance`),
+
+  signalImpacts: (id: number) =>
+    request<SignalImpactRead[]>(`/intelligence/signals/${id}/impacts`),
+
+  missionIntelligence: (missionId: number, limit = 15) =>
+    request<MissionSignalsResponse>(
+      `/missions/${missionId}/intelligence?limit=${limit}`,
+    ),
+
+  executiveBrief: (hours = 24) =>
+    request<SynthesisResponseRead>(
+      `/executive/intelligence/brief?hours=${hours}`,
+    ),
+
+  missionIntelSynthesis: (missionId: number, hours = 24) =>
+    request<SynthesisResponseRead>(
+      `/missions/${missionId}/intelligence/synthesize?hours=${hours}`,
+    ),
+
+  // -- Memory + retrieval (Sprint 3) ---------------------------------------
+  searchMemory: (payload: SearchQuery) =>
+    request<SearchResponse>("/memory/search", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+
+  memoryForMission: (missionId: number, limit = 200) =>
+    request<MemoryRecordRead[]>(
+      `/memory/mission/${missionId}?limit=${limit}`,
+    ),
+
+  memoryForEntity: (entityType: string, entityId: number, limit = 200) =>
+    request<MemoryRecordRead[]>(
+      `/memory/entity/${encodeURIComponent(entityType)}/${entityId}?limit=${limit}`,
+    ),
+
+  refreshMemoryRecord: (recordId: number) =>
+    request<MemoryRecordRead>(`/memory/records/${recordId}/refresh`, {
+      method: "POST",
+    }),
+
+  // -- RAG synthesis (Sprint 3) --------------------------------------------
+  synthesizeMission: (missionId: number) =>
+    request<SynthesisResponseRead>(`/missions/${missionId}/synthesize`, {
+      method: "POST",
+    }),
+
+  synthesizePressure: (missionId: number) =>
+    request<SynthesisResponseRead>(
+      `/missions/${missionId}/synthesize/pressure`,
+      { method: "POST" },
+    ),
+
+  synthesizeHistory: (missionId: number, days = 14) =>
+    request<SynthesisResponseRead>(
+      `/missions/${missionId}/synthesize/history?days=${days}`,
+      { method: "POST" },
+    ),
+
+  relatedMissions: (missionId: number, limit = 6) =>
+    request<RelatedMissionsResponse>(
+      `/missions/${missionId}/related?limit=${limit}`,
+    ),
+
+  // -- Pressure history (Sprint 2) -----------------------------------------
+  missionPressureHistory: (missionId: number, limit = 100) =>
+    request<PressureHistory>(
+      `/missions/${missionId}/pressure/history?limit=${limit}`,
+    ),
+
+  recomputePressure: (missionId: number) =>
+    request<PressureSnapshotRead>(
+      `/missions/${missionId}/pressure/recompute`,
+      { method: "POST" },
+    ),
+
+  // -- Presence (Sprint 2) -------------------------------------------------
+  presenceActive: (missionId?: number) => {
+    const qs =
+      missionId !== undefined ? `?mission_id=${missionId}` : "";
+    return request<PresenceList>(`/presence/active${qs}`);
+  },
+
+  presenceForMission: (missionId: number) =>
+    request<PresenceList>(`/presence/mission/${missionId}`),
+
+  graphPropagation: (params: {
+    source_type: string;
+    source_id: number;
+    direction?: "downstream" | "upstream" | "both";
+    depth?: number;
+    relationship_type?: string[];
+  }) => {
+    const qs = new URLSearchParams();
+    qs.set("source_type", params.source_type);
+    qs.set("source_id", String(params.source_id));
+    if (params.direction) qs.set("direction", params.direction);
+    if (params.depth) qs.set("depth", String(params.depth));
+    if (params.relationship_type) {
+      for (const t of params.relationship_type)
+        qs.append("relationship_type", t);
+    }
+    return request<PropagationView>(
+      `/graph/propagation?${qs.toString()}`,
+    );
+  },
 };
 
 export { ApiError };

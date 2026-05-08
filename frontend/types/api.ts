@@ -848,3 +848,674 @@ export interface ActivityEventRead {
   payload?: Record<string, unknown> | null;
   created_at: string;
 }
+
+// =============================================================================
+// Sprint 0 — canonical operational core (mission, execution, events, graph).
+// Mirrors backend/app/schemas/{mission,execution,operational_event,relationship}.py.
+// =============================================================================
+
+export type MissionStatus = "planning" | "active" | "paused" | "completed" | "cancelled";
+export type MissionPriority = "low" | "normal" | "high" | "critical";
+export type MissionHealth = "nominal" | "watch" | "strain" | "critical";
+
+export interface MissionRead {
+  id: number;
+  codename: string;
+  name: string;
+  description?: string | null;
+  mission_type: string;
+  status: MissionStatus;
+  priority: MissionPriority;
+  pressure_score: number;
+  health_status: MissionHealth;
+  owner_user_id?: number | null;
+  parent_mission_id?: number | null;
+  starts_at?: string | null;
+  target_completion_at?: string | null;
+  completed_at?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface MissionCreate {
+  codename: string;
+  name: string;
+  description?: string | null;
+  mission_type?: string;
+  status?: MissionStatus;
+  priority?: MissionPriority;
+  pressure_score?: number;
+  health_status?: MissionHealth;
+  owner_user_id?: number | null;
+  parent_mission_id?: number | null;
+  starts_at?: string | null;
+  target_completion_at?: string | null;
+}
+
+export interface MissionUpdate {
+  name?: string;
+  description?: string | null;
+  mission_type?: string;
+  status?: MissionStatus;
+  priority?: MissionPriority;
+  pressure_score?: number;
+  health_status?: MissionHealth;
+  owner_user_id?: number | null;
+  parent_mission_id?: number | null;
+  starts_at?: string | null;
+  target_completion_at?: string | null;
+  completed_at?: string | null;
+}
+
+export interface MissionEntityRead {
+  id: number;
+  mission_id: number;
+  entity_type: string;
+  entity_id: number;
+  relationship_type: string;
+  weight: number;
+  notes?: string | null;
+  created_at: string;
+}
+
+export interface MissionEntityCreate {
+  entity_type: string;
+  entity_id: number;
+  relationship_type?: string;
+  weight?: number;
+  notes?: string | null;
+}
+
+export interface MissionPressure {
+  mission_id: number;
+  pressure_score: number;
+  health_status: MissionHealth;
+  components: Record<string, number>;
+  blockers_count: number;
+  overdue_count: number;
+  pending_approvals_count: number;
+  explanation: string;
+}
+
+export interface MissionDependencyEdge {
+  relationship_type: string;
+  other_mission_id: number;
+  other_codename?: string | null;
+  other_name?: string | null;
+  direction: "upstream" | "downstream";
+}
+
+export interface MissionDependencies {
+  mission_id: number;
+  upstream: MissionDependencyEdge[];
+  downstream: MissionDependencyEdge[];
+}
+
+export interface MissionTimelineItem {
+  item_type: string;
+  item_id: number;
+  occurred_at: string;
+  title: string;
+  summary?: string | null;
+  actor?: string | null;
+  entity_type?: string | null;
+  entity_id?: number | null;
+  data?: Record<string, unknown> | null;
+}
+
+export interface MissionTimeline {
+  mission_id: number;
+  count: number;
+  items: MissionTimelineItem[];
+}
+
+// --- Execution queue ---------------------------------------------------------
+
+export type QueueItemStatus =
+  | "queued"
+  | "in_progress"
+  | "blocked"
+  | "completed"
+  | "cancelled"
+  | "deferred";
+
+export type QueueItemType =
+  | "task"
+  | "approval"
+  | "draft"
+  | "followup"
+  | "recommendation"
+  | "mission_action"
+  | "blocker";
+
+export interface ExecutionQueueItemRead {
+  id?: number | null;
+  item_type: QueueItemType;
+  source_type?: string | null;
+  source_id?: number | null;
+  mission_id?: number | null;
+  title: string;
+  summary?: string | null;
+  status: QueueItemStatus;
+  priority_score: number;
+  pressure_score: number;
+  owner?: string | null;
+  due_at?: string | null;
+  blocked_reason?: string | null;
+  completed_at?: string | null;
+  created_at?: string | null;
+  is_projected: boolean;
+  meta?: Record<string, unknown> | null;
+}
+
+export interface ExecutionQueue {
+  count: number;
+  items: ExecutionQueueItemRead[];
+}
+
+export interface ExecutionQueueItemCreate {
+  item_type: QueueItemType;
+  source_type?: string | null;
+  source_id?: number | null;
+  mission_id?: number | null;
+  title: string;
+  summary?: string | null;
+  priority_score?: number;
+  pressure_score?: number;
+  owner?: string | null;
+  due_at?: string | null;
+  meta?: Record<string, unknown> | null;
+}
+
+export interface ExecutionQueueItemUpdate {
+  status?: QueueItemStatus;
+  priority_score?: number;
+  pressure_score?: number;
+  owner?: string | null;
+  due_at?: string | null;
+  blocked_reason?: string | null;
+  completed_at?: string | null;
+  meta?: Record<string, unknown> | null;
+}
+
+// --- Operational events ------------------------------------------------------
+
+export type EventSeverity = "info" | "notice" | "warning" | "critical";
+
+export interface OperationalEventRead {
+  id: number;
+  topic: string;
+  event_type: string;
+  mission_id?: number | null;
+  entity_type?: string | null;
+  entity_id?: number | null;
+  actor?: string | null;
+  source?: string | null;
+  severity: EventSeverity;
+  payload?: Record<string, unknown> | null;
+  created_at: string;
+}
+
+export interface OperationalEventStream {
+  count: number;
+  cursor?: number | null;
+  items: OperationalEventRead[];
+}
+
+export interface OperationalEventCreate {
+  topic: string;
+  event_type: string;
+  mission_id?: number | null;
+  entity_type?: string | null;
+  entity_id?: number | null;
+  actor?: string | null;
+  source?: string | null;
+  severity?: EventSeverity;
+  payload?: Record<string, unknown> | null;
+}
+
+// --- Relationships / propagation --------------------------------------------
+
+export type RelationshipType =
+  | "depends_on"
+  | "blocks"
+  | "supports"
+  | "funds"
+  | "supplies"
+  | "owns"
+  | "affects"
+  | "influences"
+  | "participates_in"
+  | "relates_to"
+  | "mitigates"
+  | "escalates_to"
+  | "connected_to";
+
+export interface RelationshipRead {
+  id: number;
+  source_type: string;
+  source_id: number;
+  target_type: string;
+  target_id: number;
+  relationship_type: RelationshipType;
+  weight: number;
+  meta?: Record<string, unknown> | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface RelationshipCreate {
+  source_type: string;
+  source_id: number;
+  target_type: string;
+  target_id: number;
+  relationship_type: RelationshipType;
+  weight?: number;
+  meta?: Record<string, unknown> | null;
+}
+
+export interface PropagationNode {
+  entity_type: string;
+  entity_id: number;
+  distance: number;
+  path: RelationshipType[];
+}
+
+export interface PropagationView {
+  source_type: string;
+  source_id: number;
+  direction: "downstream" | "upstream" | "both";
+  depth: number;
+  nodes: PropagationNode[];
+}
+
+// =============================================================================
+// Sprint 1 — auth
+// =============================================================================
+
+export interface UserRead {
+  id: number;
+  email: string;
+  name?: string | null;
+  status: string;
+  primary_role: string;
+  has_password: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CurrentUserRead {
+  id: number;
+  email: string;
+  name?: string | null;
+  primary_role: string;
+  is_anonymous: boolean;
+}
+
+export interface LoginRequest {
+  email: string;
+  password?: string;
+}
+
+export interface TokenResponse {
+  access_token: string;
+  token_type: "bearer";
+  expires_in: number;
+  user: UserRead;
+}
+
+export interface UserCreate {
+  email: string;
+  name?: string | null;
+  primary_role?: string;
+  password?: string | null;
+}
+
+// =============================================================================
+// Sprint 2 — pressure history + presence + websocket payloads
+// =============================================================================
+
+export interface PressureSnapshotRead {
+  id: number;
+  mission_id: number;
+  score: number;
+  health_status: MissionHealth;
+  components: Record<string, number>;
+  blockers_count: number;
+  overdue_count: number;
+  pending_approvals_count: number;
+  unresolved_dependencies_count: number;
+  high_priority_intel_count: number;
+  activity_volume: number;
+  escalation_flags_count: number;
+  source: string;
+  trigger_event_id?: number | null;
+  computed_at: string;
+}
+
+export interface PressureHistory {
+  mission_id: number;
+  count: number;
+  snapshots: PressureSnapshotRead[];
+}
+
+export interface PresenceSessionRead {
+  id: number;
+  client_id: string;
+  user_id?: number | null;
+  display_name?: string | null;
+  mission_id?: number | null;
+  connected_at: string;
+  last_heartbeat: string;
+  disconnected_at?: string | null;
+}
+
+export interface PresenceList {
+  count: number;
+  operators: PresenceSessionRead[];
+}
+
+// =============================================================================
+// Sprint 5 — cognition + recommendations + simulation + drafting
+// =============================================================================
+
+export interface CognitionCommandRequest {
+  command: string;
+  mission_id?: number | null;
+}
+
+export interface CognitionResponseRead {
+  command: string;
+  intent_id?: string | null;
+  intent_label?: string | null;
+  matched_keywords: string[];
+  intent_confidence: number;
+  synthesis: SynthesisResponseRead;
+}
+
+export interface IntentDescriptor {
+  intent_id: string;
+  label: string;
+  keywords: string[];
+  requires_mission: boolean;
+  temporal_hours?: number | null;
+}
+
+export interface RecommendationRead {
+  id: number;
+  recommendation_type: string;
+  title: string;
+  rationale: string;
+  confidence: number;
+  mission_id?: number | null;
+  target_entity_type?: string | null;
+  target_entity_id?: number | null;
+  projected_impact?: string | null;
+  projected_delta?: number | null;
+  components: Record<string, unknown>;
+  citations?: Array<Record<string, unknown>> | null;
+  source: string;
+  created_by?: string | null;
+  status: string;
+  decided_by?: string | null;
+  decided_at?: string | null;
+  decision_note?: string | null;
+  expires_at?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface RecommendationDecision {
+  decision: "accepted" | "dismissed";
+  decided_by: string;
+  decision_note?: string | null;
+}
+
+export interface RecommendationGenerationReport {
+  created: number;
+  refreshed: number;
+  total_pending: number;
+}
+
+export interface ImpactedMissionRead {
+  mission_id: number;
+  codename: string;
+  name: string;
+  pressure_delta: number;
+  rationale: string;
+}
+
+export interface PropagationEdgeRead {
+  source_type: string;
+  source_id: number;
+  target_type: string;
+  target_id: number;
+  relationship_type: string;
+  distance: number;
+}
+
+export interface SimulationResultRead {
+  simulation_type: string;
+  seed: Record<string, unknown>;
+  impacted_missions: ImpactedMissionRead[];
+  propagation_paths: PropagationEdgeRead[];
+  pressure_deltas: Record<string, number>;
+  confidence: number;
+  assumptions: string[];
+  notes: string[];
+}
+
+// =============================================================================
+// Sprint 4 — aerospace intelligence signals + relevance + impact
+// =============================================================================
+
+export type SignalType =
+  | "funding"
+  | "procurement"
+  | "supplier_risk"
+  | "manufacturing"
+  | "launch"
+  | "geopolitical"
+  | "regulatory"
+  | "defense"
+  | "partnership"
+  | "acquisition"
+  | "market_shift";
+
+export interface SignalSummaryRead {
+  id: number;
+  source: string;
+  title: string;
+  url?: string | null;
+  region?: string | null;
+  category: string;
+  summary?: string | null;
+  published_at?: string | null;
+  strategic_relevance_score: number;
+  urgency_score: number;
+  confidence_score: number;
+  signal_type: SignalType;
+  severity: "info" | "notice" | "warning" | "critical";
+}
+
+export interface SignalRelevanceRead {
+  id: number;
+  intel_item_id: number;
+  mission_id: number;
+  score: number;
+  decayed_score: number;
+  components: Record<string, unknown>;
+  is_relevant: boolean;
+  expires_at?: string | null;
+  computed_at: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface SignalImpactRead {
+  id: number;
+  intel_item_id: number;
+  mission_id: number;
+  impact_type: string;
+  contribution: number;
+  components: Record<string, unknown>;
+  notes?: string | null;
+  expires_at?: string | null;
+  computed_at: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface MissionSignalRead {
+  relevance: SignalRelevanceRead;
+  signal: SignalSummaryRead;
+  impact_type?: string | null;
+  contribution?: number | null;
+}
+
+export interface MissionSignalsResponse {
+  mission_id: number;
+  count: number;
+  items: MissionSignalRead[];
+}
+
+export interface IngestionReportRead {
+  ingested: number;
+  deduped: number;
+  relevance_rows: number;
+  impact_rows: number;
+  affected_missions: number;
+}
+
+// =============================================================================
+// Sprint 3 — memory + retrieval + RAG synthesis
+// =============================================================================
+
+export interface MemoryRecordRead {
+  id: number;
+  source_type: string;
+  source_id: number;
+  source_hash: string;
+  title?: string | null;
+  content: string;
+  mission_id?: number | null;
+  entity_type?: string | null;
+  entity_id?: number | null;
+  created_by?: string | null;
+  source_occurred_at?: string | null;
+  version: number;
+  embedding_status: string;
+  embedded_at?: string | null;
+  token_count: number;
+  meta?: Record<string, unknown> | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface RetrievalScoreComponents {
+  semantic: number;
+  keyword: number;
+  recency: number;
+  w_semantic: number;
+  w_keyword: number;
+  w_recency: number;
+}
+
+export interface RetrievalResultRead {
+  chunk_id: number;
+  record_id: number;
+  source_type: string;
+  source_id: number;
+  title?: string | null;
+  text: string;
+  score: number;
+  components: RetrievalScoreComponents;
+  mission_id?: number | null;
+  entity_type?: string | null;
+  entity_id?: number | null;
+  occurred_at?: string | null;
+  chunk_index: number;
+  embedding_model?: string | null;
+}
+
+export interface RetrievalTraceRead {
+  query: string;
+  candidates_considered: number;
+  chunks_returned: number;
+  scoped_mission_id?: number | null;
+  scoped_entity_type?: string | null;
+  scoped_entity_id?: number | null;
+  since?: string | null;
+  embedding_model: string;
+  weights: Record<string, number>;
+}
+
+export interface SearchQuery {
+  query: string;
+  mission_id?: number | null;
+  entity_type?: string | null;
+  entity_id?: number | null;
+  since?: string | null;
+  source_types?: string[] | null;
+  limit?: number;
+}
+
+export interface SearchResponse {
+  results: RetrievalResultRead[];
+  trace: RetrievalTraceRead;
+}
+
+export interface CitationRead {
+  marker: string;
+  chunk_id: number;
+  record_id: number;
+  source_type: string;
+  source_id: number;
+  title?: string | null;
+  excerpt: string;
+}
+
+export interface SynthesisResponseRead {
+  objective: string;
+  summary: string;
+  confidence: number;
+  weak_retrieval: boolean;
+  citations: CitationRead[];
+  retrieval_trace: RetrievalTraceRead;
+  model: string;
+}
+
+export interface RelatedMissionRead {
+  mission_id: number;
+  title?: string | null;
+  score: number;
+  components: RetrievalScoreComponents;
+  excerpt: string;
+}
+
+export interface RelatedMissionsResponse {
+  related: RelatedMissionRead[];
+  trace: RetrievalTraceRead;
+}
+
+// Server → client websocket frames (subset).
+export type WSFrame =
+  | { type: "hello"; client_id: string }
+  | { type: "subscribed"; topic: string; mission_id: number | null }
+  | { type: "pong"; ts: string }
+  | { type: "presence_changed"; topic: "presence"; mission_id: number | null; client_id: string }
+  | { type: "error"; detail: string }
+  | {
+      type: "event";
+      topic: string;
+      event_type: string;
+      id: number;
+      mission_id: number | null;
+      entity_type: string | null;
+      entity_id: number | null;
+      actor: string | null;
+      source: string | null;
+      severity: EventSeverity;
+      payload?: Record<string, unknown> | null;
+      occurred_at: string | null;
+    };

@@ -151,6 +151,9 @@ class MarketOpportunity(Base, TimestampMixin):
     next_step_due_at: Mapped[Optional[datetime]] = mapped_column(
         DateTime(timezone=True), index=True
     )
+    mission_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("missions.id", ondelete="SET NULL"), index=True
+    )
     deleted_at: Mapped[Optional[datetime]] = mapped_column(
         DateTime(timezone=True)
     )
