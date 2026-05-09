@@ -6,6 +6,8 @@ import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { CognitionPanel } from "@/components/shell/cognition-panel";
+import { TopologyView } from "@/components/topology/topology-view";
+import { OperationalTimelineView } from "@/components/timeline/operational-timeline";
 import { MemoryPanel } from "@/components/shell/memory-panel";
 import { MissionDetailTabs, MissionTabPanel, type MissionTabKey } from "@/components/shell/mission-detail-tabs";
 import { MissionIntelligence } from "@/components/shell/mission-intelligence";
@@ -66,9 +68,9 @@ export default function MissionDetailPage() {
   const id = Number(params.id);
   const { setSelectedMissionId } = useShell();
   const qc = useQueryClient();
-  const [tab, setTab] = useState<"overview" | "entities" | "timeline" | "queue" | "dependencies" | "memory">(
-    "overview",
-  );
+  const [tab, setTab] = useState<
+    "overview" | "entities" | "timeline" | "queue" | "dependencies" | "memory" | "topology" | "replay"
+  >("overview");
   const [linkDialogOpen, setLinkDialogOpen] = useState(false);
 
   // Tell the shell which mission is in focus so the tactical rail filters by it.
@@ -174,6 +176,8 @@ export default function MissionDetailPage() {
           { key: "queue", label: "Queue", badge: missionQueue?.count ?? 0 },
           { key: "dependencies", label: "Deps", badge: totalDeps },
           { key: "memory" as MissionTabKey, label: "Memory" },
+          { key: "topology" as MissionTabKey, label: "Topology" },
+          { key: "replay" as MissionTabKey, label: "Replay" },
         ]}
       />
 
@@ -388,6 +392,18 @@ export default function MissionDetailPage() {
             <MemoryPanel missionId={id} />
             <RelatedMissions missionId={id} />
           </div>
+        </MissionTabPanel>
+      )}
+
+      {tab === "topology" && (
+        <MissionTabPanel>
+          <TopologyView missionId={id} />
+        </MissionTabPanel>
+      )}
+
+      {tab === "replay" && (
+        <MissionTabPanel>
+          <OperationalTimelineView missionId={id} />
         </MissionTabPanel>
       )}
 

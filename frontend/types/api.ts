@@ -1595,6 +1595,214 @@ export interface ProposedActionDecision {
   note?: string | null;
 }
 
+// ===== Sprint 7 — horizon, topology, operational timeline, environment =====
+
+export type HorizonBand = "nominal" | "watch" | "strain" | "critical";
+
+export interface HorizonMissionPulse {
+  mission_id: number;
+  codename: string;
+  name: string;
+  priority: string;
+  health_status: HorizonBand;
+  pressure_score: number;
+  pressure_delta_24h: number;
+  blockers: number;
+  overdue: number;
+  pending_approvals: number;
+  open_proposed_actions: number;
+  last_event_at: string | null;
+}
+
+export interface HorizonEscalation {
+  id: string;
+  severity: "info" | "warn" | "critical";
+  domain: string;
+  title: string;
+  detail: string;
+  mission_id?: number | null;
+  mission_codename?: string | null;
+  related_entity_type?: string | null;
+  related_entity_id?: number | null;
+  link_hint?: string | null;
+}
+
+export interface HorizonOpportunity {
+  id: string;
+  domain: string;
+  title: string;
+  detail: string;
+  confidence: number;
+  related_entity_type?: string | null;
+  related_entity_id?: number | null;
+  link_hint?: string | null;
+}
+
+export interface HorizonTempo {
+  events_last_hour: number;
+  events_last_24h: number;
+  approvals_decided_24h: number;
+  proposed_actions_decided_24h: number;
+  agent_runs_24h: number;
+  workflows_completed_24h: number;
+}
+
+export interface HorizonPressureMap {
+  nominal: number;
+  watch: number;
+  strain: number;
+  critical: number;
+  average_score: number;
+  peak_score: number;
+  peak_mission_id?: number | null;
+  peak_mission_codename?: string | null;
+}
+
+export interface HorizonView {
+  generated_at: string;
+  headline: string;
+  band: HorizonBand;
+  pressure_map: HorizonPressureMap;
+  tempo: HorizonTempo;
+  top_missions: HorizonMissionPulse[];
+  escalations: HorizonEscalation[];
+  opportunities: HorizonOpportunity[];
+  narrative: string[];
+}
+
+export type TopologyNodeKind =
+  | "mission"
+  | "supplier"
+  | "program"
+  | "investor_firm"
+  | "account"
+  | "intel_item"
+  | "agent";
+
+export interface TopologyNode {
+  id: string;
+  kind: TopologyNodeKind;
+  entity_id: number;
+  label: string;
+  sublabel?: string | null;
+  band: HorizonBand;
+  pressure_score: number;
+  cluster?: string | null;
+  weight: number;
+  meta: Record<string, unknown>;
+}
+
+export interface TopologyEdge {
+  id: string;
+  source: string;
+  target: string;
+  kind: string;
+  weight: number;
+  propagation: "upstream" | "downstream" | "lateral";
+  intensity: number;
+  meta: Record<string, unknown>;
+}
+
+export interface PropagationPath {
+  origin: string;
+  terminal: string;
+  intensity: number;
+  band: HorizonBand;
+  path: string[];
+  edge_kinds: string[];
+  explanation: string;
+}
+
+export interface TopologyView {
+  generated_at: string;
+  scope: "org" | "mission";
+  mission_id?: number | null;
+  nodes: TopologyNode[];
+  edges: TopologyEdge[];
+  propagation_paths: PropagationPath[];
+  cluster_summary: Record<string, number>;
+}
+
+export type OperationalTimelineKind =
+  | "operational_event"
+  | "approval_decided"
+  | "proposed_action"
+  | "agent_run"
+  | "recommendation"
+  | "escalation"
+  | "pressure_shift"
+  | "workflow_stage";
+
+export interface OperationalTimelineEntry {
+  id: string;
+  kind: OperationalTimelineKind;
+  occurred_at: string;
+  title: string;
+  summary?: string | null;
+  severity: "info" | "notice" | "warn" | "critical";
+  actor?: string | null;
+  mission_id?: number | null;
+  mission_codename?: string | null;
+  entity_type?: string | null;
+  entity_id?: number | null;
+  cluster_id?: string | null;
+  causal_parent_id?: string | null;
+  propagation: string[];
+  data: Record<string, unknown>;
+}
+
+export interface OperationalTimelineCluster {
+  id: string;
+  label: string;
+  started_at: string;
+  ended_at: string;
+  entry_count: number;
+  severity: "info" | "notice" | "warn" | "critical";
+  mission_ids: number[];
+  summary?: string | null;
+}
+
+export interface OperationalTimelineView {
+  generated_at: string;
+  scope: "org" | "mission";
+  mission_id?: number | null;
+  window_started_at: string;
+  window_ended_at: string;
+  count: number;
+  counts_by_kind: Record<string, number>;
+  counts_by_severity: Record<string, number>;
+  entries: OperationalTimelineEntry[];
+  clusters: OperationalTimelineCluster[];
+}
+
+export type EnvironmentBand = "calm" | "active" | "elevated" | "critical";
+
+export interface EnvironmentPulse {
+  generated_at: string;
+  band: EnvironmentBand;
+  pressure_index: number;
+  propagation_index: number;
+  activity_rate: number;
+  escalation_count: number;
+  open_proposed_actions: number;
+  active_agent_runs: number;
+  presence_count: number;
+  realtime_subscribers: number;
+}
+
+export interface EnvironmentTrend {
+  pulses: EnvironmentPulse[];
+  pressure_delta: number;
+  propagation_delta: number;
+  activity_delta: number;
+}
+
+export interface EnvironmentSnapshot {
+  pulse: EnvironmentPulse;
+  trend: EnvironmentTrend;
+  narrative: string[];
+}
+
 // Server → client websocket frames (subset).
 export type WSFrame =
   | { type: "hello"; client_id: string }

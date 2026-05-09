@@ -116,4 +116,54 @@ body {
     background-image: radial-gradient(rgba(255, 255, 255, 0.6) 1px, transparent 1px);
     background-size: 3px 3px;
   }
+
+  /* Sprint 7 — environmental atmosphere overlay.
+     Subtle, band-aware glow that breathes against the page background.
+     The hue is set by the [data-band] attribute on <body>. */
+  .atmosphere-layer {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+    transition: opacity 1.6s ease, background 2.4s ease;
+    background:
+      radial-gradient(ellipse 60% 35% at 12% 88%, var(--atm-low, rgba(34, 211, 238, 0.05)), transparent 70%),
+      radial-gradient(ellipse 50% 30% at 88% 12%, var(--atm-high, rgba(34, 211, 238, 0.04)), transparent 70%);
+    opacity: 0.7;
+    animation: atmosphereDrift 9s ease-in-out infinite;
+  }
+
+  body[data-band="calm"] {
+    --atm-low: rgba(34, 211, 238, 0.05);
+    --atm-high: rgba(63, 210, 154, 0.04);
+  }
+  body[data-band="active"] {
+    --atm-low: rgba(34, 211, 238, 0.08);
+    --atm-high: rgba(45, 212, 191, 0.06);
+  }
+  body[data-band="elevated"] {
+    --atm-low: rgba(240, 180, 41, 0.10);
+    --atm-high: rgba(249, 115, 22, 0.08);
+  }
+  body[data-band="critical"] {
+    --atm-low: rgba(255, 90, 107, 0.14);
+    --atm-high: rgba(249, 115, 22, 0.10);
+  }
+}
+
+/* Sprint 7 — reduced motion guarantees. Operators with the OS preference
+   set get a still environment; all atmospheric loops collapse to a steady
+   state. Required for aerospace-grade usability. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+  .atmosphere-layer {
+    animation: none !important;
+    opacity: 0.5;
+  }
 }

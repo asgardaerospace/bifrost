@@ -119,7 +119,7 @@ export function AwarenessBar() {
             <span className="text-accent/80">{currentUser.primary_role}</span>
           </span>
         )}
-        <span className="border-l border-border2 pl-3">sprint 2</span>
+        <span className="border-l border-border2 pl-3">sprint 7</span>
       </div>
     </header>
   );

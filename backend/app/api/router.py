@@ -37,6 +37,10 @@ from app.api.routes import (
     executive_brief as sprint4_exec_brief,
     cognition as sprint5_cognition,
     agents as sprint6_agents,
+    horizon as sprint7_horizon,
+    topology as sprint7_topology,
+    operational_timeline as sprint7_timeline,
+    environment as sprint7_environment,
 )
 
 api_router = APIRouter()
@@ -95,3 +99,9 @@ api_router.include_router(sprint5_cognition.router, tags=["cognition"])
 
 # Sprint 6 — governed autonomous coordination (agents + workflow trace).
 api_router.include_router(sprint6_agents.router, tags=["agents"])
+
+# Sprint 7 — executive horizon, spatial topology, unified timeline, environment.
+api_router.include_router(sprint7_horizon.router, tags=["horizon"])
+api_router.include_router(sprint7_topology.router, tags=["topology"])
+api_router.include_router(sprint7_timeline.router, tags=["operational-timeline"])
+api_router.include_router(sprint7_environment.router, tags=["environment"])

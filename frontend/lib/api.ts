@@ -85,6 +85,11 @@ import type {
   ProposedActionDecision,
   ProposedActionRead,
   WorkflowTraceRead,
+  // Sprint 7 — horizon, topology, operational timeline, environment
+  HorizonView,
+  TopologyView,
+  OperationalTimelineView,
+  EnvironmentSnapshot,
 } from "@/types/api";
 
 export interface EngineDraftRequest {
@@ -1034,6 +1039,54 @@ export const api = {
       `/graph/propagation?${qs.toString()}`,
     );
   },
+
+  // ===== Sprint 7 =====
+  horizon: (topN = 6) =>
+    request<HorizonView>(`/horizon?top_n=${topN}`),
+
+  topology: (params?: { mission_id?: number; include_intel?: boolean }) => {
+    const qs = new URLSearchParams();
+    if (params?.mission_id !== undefined) qs.set("mission_id", String(params.mission_id));
+    if (params?.include_intel !== undefined)
+      qs.set("include_intel", String(params.include_intel));
+    const suffix = qs.toString();
+    return request<TopologyView>(`/topology${suffix ? `?${suffix}` : ""}`);
+  },
+
+  missionTopology: (missionId: number, includeIntel = true) =>
+    request<TopologyView>(
+      `/missions/${missionId}/topology?include_intel=${includeIntel}`,
+    ),
+
+  operationalTimeline: (params?: {
+    mission_id?: number;
+    hours?: number;
+    limit?: number;
+  }) => {
+    const qs = new URLSearchParams();
+    if (params?.mission_id !== undefined) qs.set("mission_id", String(params.mission_id));
+    if (params?.hours !== undefined) qs.set("hours", String(params.hours));
+    if (params?.limit !== undefined) qs.set("limit", String(params.limit));
+    const suffix = qs.toString();
+    return request<OperationalTimelineView>(
+      `/operational-timeline${suffix ? `?${suffix}` : ""}`,
+    );
+  },
+
+  missionOperationalTimeline: (
+    missionId: number,
+    params?: { hours?: number; limit?: number },
+  ) => {
+    const qs = new URLSearchParams();
+    if (params?.hours !== undefined) qs.set("hours", String(params.hours));
+    if (params?.limit !== undefined) qs.set("limit", String(params.limit));
+    const suffix = qs.toString();
+    return request<OperationalTimelineView>(
+      `/missions/${missionId}/operational-timeline${suffix ? `?${suffix}` : ""}`,
+    );
+  },
+
+  environment: () => request<EnvironmentSnapshot>(`/environment`),
 };
 
 export { ApiError };

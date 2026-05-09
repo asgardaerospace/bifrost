@@ -25,6 +25,15 @@ const config: Config = {
         teal: "#2dd4bf",
         accent: "#22d3ee",
         accent2: "#0ea5b7",
+        // Sprint 7 — band atmosphere palette (calm, watch, strain, critical).
+        // Used by environment shell, horizon pressure map, topology bands.
+        bandnominal: "#3fd29a",
+        bandwatch: "#f0b429",
+        bandstrain: "#f97316",
+        bandcritical: "#ff5a6b",
+        warn: "#f0b429",
+        ok: "#3fd29a",
+        danger: "#ff5a6b",
       },
       boxShadow: {
         glow: "0 0 0 1px rgba(34,211,238,0.25), 0 0 18px -4px rgba(34,211,238,0.35)",
@@ -100,6 +109,21 @@ const config: Config = {
           "0%": { backgroundColor: "rgba(63,210,154,0.25)" },
           "100%": { backgroundColor: "transparent" },
         },
+        // Sprint 7 — environmental atmosphere motion. Subtle by design;
+        // motion is *meaningful*, not decorative. All animations honor
+        // prefers-reduced-motion via globals.css overrides.
+        atmosphereDrift: {
+          "0%,100%": { opacity: "0.55" },
+          "50%": { opacity: "0.85" },
+        },
+        topologyBreathe: {
+          "0%,100%": { strokeOpacity: "0.35" },
+          "50%": { strokeOpacity: "0.7" },
+        },
+        propagationPulse: {
+          "0%": { strokeDashoffset: "0" },
+          "100%": { strokeDashoffset: "-32" },
+        },
       },
       animation: {
         "core-pulse": "corePulse 3.6s ease-in-out infinite",
@@ -110,6 +134,10 @@ const config: Config = {
         scan: "scan 6s linear infinite",
         "soft-pulse": "softPulse 2.4s ease-in-out infinite",
         "flash-ok": "flashOk 900ms ease-out both",
+        // Sprint 7 — calm environmental motion.
+        "atmosphere-drift": "atmosphereDrift 9s ease-in-out infinite",
+        "topology-breathe": "topologyBreathe 4.2s ease-in-out infinite",
+        "propagation-pulse": "propagationPulse 3.6s linear infinite",
       },
     },
   },
