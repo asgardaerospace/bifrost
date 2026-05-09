@@ -1,0 +1,117 @@
+# Bifrost — production compose. Use alongside docker-compose.yml as overlay,
+# or stand alone:
+#
+#   docker compose -f docker-compose.prod.yml --env-file .env.production up -d
+#
+# Provides: hardened postgres, redis (for ws fanout), backend (uvicorn),
+# frontend (Next.js standalone), one-shot migrator. All services declare
+# healthchecks and depend_on with condition=service_healthy.
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: bifrost-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?POSTGRES_USER is required}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      POSTGRES_DB: ${POSTGRES_DB:?POSTGRES_DB is required}
+    volumes:
+      - bifrost_pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+    networks:
+      - bifrost
+
+  redis:
+    image: redis:7-alpine
+    container_name: bifrost-redis
+    restart: unless-stopped
+    command: ["redis-server", "--save", "", "--appendonly", "no", "--maxmemory", "256mb", "--maxmemory-policy", "allkeys-lru"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    networks:
+      - bifrost
+
+  migrator:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    image: bifrost-backend:${BIFROST_IMAGE_TAG:-local}
+    container_name: bifrost-migrator
+    restart: "no"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    env_file: .env.production
+    environment:
+      BIFROST_RUN_MIGRATIONS: "1"
+      BIFROST_ENV: production
+    command: ["true"]
+    networks:
+      - bifrost
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    image: bifrost-backend:${BIFROST_IMAGE_TAG:-local}
+    container_name: bifrost-backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      migrator:
+        condition: service_completed_successfully
+    env_file: .env.production
+    environment:
+      BIFROST_ENV: production
+      REDIS_URL: redis://redis:6379/0
+    ports:
+      - "8000:8000"
+    networks:
+      - bifrost
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    image: bifrost-frontend:${BIFROST_IMAGE_TAG:-local}
+    container_name: bifrost-frontend
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-/api/v1}
+    ports:
+      - "3000:3000"
+    networks:
+      - bifrost
+
+volumes:
+  bifrost_pg_data:
+    name: bifrost_pg_data
+
+networks:
+  bifrost:
+    name: bifrost
+    driver: bridge

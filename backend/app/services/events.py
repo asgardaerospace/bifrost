@@ -15,6 +15,7 @@ from typing import Optional
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.core.observability import current_trace, metrics
 from app.models.operational_event import OperationalEvent
 from app.schemas.operational_event import (
     OperationalEventCreate,
@@ -31,10 +32,22 @@ def publish(db: Session, payload: OperationalEventCreate) -> OperationalEvent:
     broadcast cannot be unsent — but the persisted record will also have
     been rolled back, so subscribers can reconcile via /events?since=cursor
     and discover the missing id.
+
+    Attaches the active trace metadata (request_id / trace_id / workflow_id)
+    to the event payload so downstream subscribers can correlate the event
+    back to the originating HTTP request or workflow run.
     """
+    # Merge trace metadata into payload — additive; existing keys win.
+    trace = current_trace()
+    if trace:
+        merged_payload = dict(payload.payload or {})
+        merged_payload.setdefault("_trace", {k: v for k, v in trace.items() if k != "mission_id"})
+        # mutate the pydantic model via .model_copy to keep callers untouched.
+        payload = payload.model_copy(update={"payload": merged_payload})
     event = OperationalEvent(**payload.model_dump())
     db.add(event)
     db.flush()
+    metrics.incr(f"events.published.{event.topic}")
 
     # Schedule realtime fanout. Sync caller bridges into the loop; if no
     # loop is bound (test client without ws layer), this is a no-op.

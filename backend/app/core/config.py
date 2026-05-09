@@ -28,6 +28,15 @@ class Settings(BaseSettings):
     # protected routes require a valid bearer token.
     auth_enforcement_enabled: bool = False
 
+    # Sprint 8 — observability + reliability + governance knobs.
+    log_level: str = "INFO"
+    log_format: str = "json"  # "json" | "text"
+    rate_limit_enabled: bool = False
+    rate_limit_rpm: int = 600
+    rate_limit_burst: int = 120
+    governance_autonomy_confidence_floor: float = 0.65
+    governance_max_proposals_per_mission_per_hour: int = 20
+
     # NoDecode prevents pydantic-settings from JSON-parsing the env value
     # so our @field_validator can split a plain comma-separated string.
     cors_origins: Annotated[List[str], NoDecode] = Field(default_factory=list)
@@ -40,6 +49,10 @@ class Settings(BaseSettings):
         if isinstance(v, str):
             return [o.strip() for o in v.split(",") if o.strip()]
         return v
+
+    @property
+    def is_production(self) -> bool:
+        return self.environment.lower() in {"production", "prod"}
 
 
 @lru_cache

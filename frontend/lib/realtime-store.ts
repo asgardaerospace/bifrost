@@ -16,6 +16,7 @@
  */
 
 import { create } from "zustand";
+import { useShallow } from "zustand/react/shallow";
 
 import { api } from "./api";
 import { getWsClient, type WSStatus } from "./ws-client";
@@ -31,34 +32,58 @@ interface RealtimeState {
   presenceByMission: Record<number, number>; // mission_id → operator count
   globalPresenceCount: number;
 
+  // Sprint 8 — operational resilience surface.
+  lastSyncAt: number | null;          // ms epoch of last frame received
+  reconnectCount: number;             // cumulative reconnects this session
+  degradedSince: number | null;       // when status first dropped from open
+  hasEverConnected: boolean;          // true after first open
+
   // actions
   pushEvent: (e: OperationalEventRead) => void;
   setStatus: (s: WSStatus) => void;
   setClientId: (id: string) => void;
   setMissionPresence: (missionId: number, count: number) => void;
   setGlobalPresence: (count: number) => void;
+  noteFrame: () => void;
 }
 
-export const useRealtimeStore = create<RealtimeState>((set) => ({
+export const useRealtimeStore = create<RealtimeState>((set, get) => ({
   status: "idle",
   clientId: null,
   recentEvents: [],
   lastEventId: 0,
   presenceByMission: {},
   globalPresenceCount: 0,
+  lastSyncAt: null,
+  reconnectCount: 0,
+  degradedSince: null,
+  hasEverConnected: false,
 
   pushEvent: (e) =>
     set((s) => ({
       recentEvents: [e, ...s.recentEvents].slice(0, RECENT_EVENT_BUFFER),
       lastEventId: e.id > s.lastEventId ? e.id : s.lastEventId,
+      lastSyncAt: Date.now(),
     })),
-  setStatus: (status) => set({ status }),
+  setStatus: (status) => {
+    const prev = get();
+    const becameOpen = status === "open" && prev.status !== "open";
+    const lostOpen = prev.status === "open" && status !== "open";
+    set({
+      status,
+      hasEverConnected: prev.hasEverConnected || status === "open",
+      reconnectCount: becameOpen && prev.hasEverConnected ? prev.reconnectCount + 1 : prev.reconnectCount,
+      degradedSince: lostOpen ? Date.now() : status === "open" ? null : prev.degradedSince,
+      lastSyncAt: status === "open" ? Date.now() : prev.lastSyncAt,
+    });
+  },
   setClientId: (clientId) => set({ clientId }),
   setMissionPresence: (missionId, count) =>
     set((s) => ({
       presenceByMission: { ...s.presenceByMission, [missionId]: count },
     })),
   setGlobalPresence: (count) => set({ globalPresenceCount: count }),
+  noteFrame: () => set({ lastSyncAt: Date.now() }),
 }));
 
 // React Query cache keys we invalidate on incoming events.
@@ -116,6 +141,8 @@ export function bindRealtimeToQueryClient(qc: QcLike): () => void {
       store.getState().setStatus(s);
     },
     onFrame: (frame: WSFrame) => {
+      // Any inbound frame (event, presence, pong) proves the connection is live.
+      store.getState().noteFrame();
       if (frame.type === "hello") {
         store.getState().setClientId(frame.client_id);
         return;
@@ -192,4 +219,17 @@ export function useWsStatus() {
 export function useRecentEvents(limit?: number) {
   const events = useRealtimeStore((s) => s.recentEvents);
   return limit ? events.slice(0, limit) : events;
+}
+
+/** Operational resilience snapshot — used by the awareness bar / banner. */
+export function useResilienceSnapshot() {
+  return useRealtimeStore(
+    useShallow((s) => ({
+      status: s.status,
+      lastSyncAt: s.lastSyncAt,
+      reconnectCount: s.reconnectCount,
+      degradedSince: s.degradedSince,
+      hasEverConnected: s.hasEverConnected,
+    })),
+  );
 }

@@ -7,6 +7,8 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.router import api_router
 from app.core.config import get_settings
+from app.core.middleware import install_middlewares
+from app.core.observability import init_observability
 from app.services.pubsub import get_redis_url, manager as pubsub_manager
 
 logger = logging.getLogger(__name__)
@@ -25,13 +27,16 @@ async def lifespan(app: FastAPI):
             logger.warning(
                 "REDIS_URL configured but redis fanout did not attach — running in-memory"
             )
+    logger.info("bifrost.boot", extra={"event": "startup", "redis": bool(redis_url)})
     try:
         yield
     finally:
         await pubsub_manager.detach_redis()
+        logger.info("bifrost.boot", extra={"event": "shutdown"})
 
 
 def create_app() -> FastAPI:
+    init_observability()
     settings = get_settings()
 
     app = FastAPI(
@@ -41,6 +46,9 @@ def create_app() -> FastAPI:
         lifespan=lifespan,
     )
 
+    # Order matters: CORS must be outermost (added last so it wraps the rest).
+    install_middlewares(app)
+
     if settings.cors_origins:
         app.add_middleware(
             CORSMiddleware,
@@ -48,6 +56,7 @@ def create_app() -> FastAPI:
             allow_credentials=True,
             allow_methods=["*"],
             allow_headers=["*"],
+            expose_headers=["x-request-id", "x-trace-id"],
         )
 
     app.include_router(api_router, prefix=settings.api_v1_prefix)

@@ -255,10 +255,16 @@ class PubSubManager:
     # -- internals ------------------------------------------------------
 
     async def _send(self, conn: WSConnection, message: dict[str, Any]) -> None:
+        # Bounded send timeout — a slow consumer must not block fanout.
         try:
-            await conn.ws.send_json(message)
-        except Exception:
-            # Drop the connection on send failure.
+            await asyncio.wait_for(conn.ws.send_json(message), timeout=5.0)
+        except (asyncio.TimeoutError, Exception):
+            # Drop the connection on send failure or timeout — caller will
+            # re-establish on its own backoff.
+            try:
+                await conn.ws.close(code=1011)
+            except Exception:
+                pass
             await self.disconnect(conn.client_id)
 
 

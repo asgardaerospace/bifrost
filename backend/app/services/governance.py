@@ -27,6 +27,7 @@ from app.models.approval import Approval
 from app.models.autonomy import ProposedAction
 from app.models.execution_queue import ExecutionQueueItem
 from app.schemas.operational_event import OperationalEventCreate
+from app.services import audit as audit_service
 from app.services import events as events_service
 from app.services import memory as memory_service
 from app.services import pressure as pressure_service
@@ -250,6 +251,22 @@ def decide(
         memory_service.ingest_approval(db, approval)
     except Exception:
         pass
+
+    audit_service.record(
+        db,
+        action=audit_service.ACTION_APPROVAL_DECIDE,
+        actor=reviewer,
+        outcome=decision,
+        mission_id=approval.mission_id,
+        target_type=approval.entity_type,
+        target_id=approval.entity_id,
+        detail={
+            "approval_id": approval.id,
+            "approval_action": approval.action,
+            "note": note,
+        },
+        severity="warning" if decision == APPROVAL_REJECTED else "notice",
+    )
 
     db.commit()
     db.refresh(approval)

@@ -5,6 +5,7 @@ import type { ReactNode } from "react";
 import { AwarenessBar } from "./awareness-bar";
 import { ExecutionRail } from "./execution-rail";
 import { IntelligenceRail } from "./intelligence-rail";
+import { ResilienceBanner } from "./resilience-banner";
 import { TacticalRail } from "./tactical-rail";
 
 /**
@@ -29,6 +30,7 @@ export function ShellChrome({ children }: { children: ReactNode }) {
   return (
     <div className="flex h-screen min-h-0 flex-col bg-bg text-ink grid-bg">
       <AwarenessBar />
+      <ResilienceBanner />
       <div className="grid min-h-0 flex-1 grid-cols-[280px_1fr_340px]">
         <IntelligenceRail />
         <main className="relative min-h-0 overflow-y-auto bg-bgdeep/60">

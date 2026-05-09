@@ -1,0 +1,15 @@
+node_modules
+.next
+.next-build
+out
+.cache
+.env
+.env.*
+!.env.example
+.DS_Store
+.git
+.gitignore
+*.log
+coverage
+README.md
+DEPLOYMENT.md

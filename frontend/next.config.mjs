@@ -13,6 +13,10 @@ const devBackend = process.env.BACKEND_URL ?? "http://127.0.0.1:8000";
 
 const nextConfig = {
   reactStrictMode: true,
+  // Standalone output produces a self-contained Node bundle (server.js +
+  // pruned node_modules) for the production Docker image. Has no effect on
+  // local `next dev`.
+  output: "standalone",
   // Pin file-tracing to the frontend dir. This repo is a monorepo
   // (backend/ sibling, lockfiles at multiple levels) and without this
   // Next.js can walk up the tree during `Collecting build traces` and

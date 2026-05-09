@@ -16,6 +16,7 @@ from app.schemas.user import (
     UserCreate,
     UserRead,
 )
+from app.services import audit as audit_service
 from app.services import auth as auth_service
 
 router = APIRouter()
@@ -24,11 +25,32 @@ router = APIRouter()
 @router.post("/auth/login", response_model=TokenResponse)
 def login(payload: LoginRequest, db: Session = Depends(get_db)) -> TokenResponse:
     settings = get_settings()
-    user = auth_service.authenticate(db, email=payload.email, password=payload.password)
+    try:
+        user = auth_service.authenticate(db, email=payload.email, password=payload.password)
+    except Exception:
+        audit_service.record(
+            db,
+            action=audit_service.ACTION_AUTH_LOGIN_FAILED,
+            actor=payload.email or "anonymous",
+            outcome="fail",
+            severity="warning",
+            detail={"email": payload.email},
+        )
+        db.commit()
+        raise
     token = create_access_token(
         subject=str(user.id),
         extra_claims={"role": user.primary_role, "email": user.email},
     )
+    audit_service.record(
+        db,
+        action=audit_service.ACTION_AUTH_LOGIN,
+        actor=user.email,
+        outcome="ok",
+        target_type="user",
+        target_id=user.id,
+    )
+    db.commit()
     return TokenResponse(
         access_token=token,
         token_type="bearer",

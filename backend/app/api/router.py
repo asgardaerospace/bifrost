@@ -3,6 +3,7 @@ from fastapi import APIRouter
 from app.api.routes import (
     auth,
     health,
+    observability,
     investors,
     investor_agent,
     investor_engine,
@@ -41,11 +42,13 @@ from app.api.routes import (
     topology as sprint7_topology,
     operational_timeline as sprint7_timeline,
     environment as sprint7_environment,
+    governance as sprint8_governance,
 )
 
 api_router = APIRouter()
 
 api_router.include_router(health.router, tags=["health"])
+api_router.include_router(observability.router, tags=["observability"])
 api_router.include_router(auth.router, tags=["auth"])
 api_router.include_router(investors.router, prefix="/investors", tags=["investors"])
 api_router.include_router(investor_agent.router, prefix="/investor-agent", tags=["investor-agent"])
@@ -105,3 +108,6 @@ api_router.include_router(sprint7_horizon.router, tags=["horizon"])
 api_router.include_router(sprint7_topology.router, tags=["topology"])
 api_router.include_router(sprint7_timeline.router, tags=["operational-timeline"])
 api_router.include_router(sprint7_environment.router, tags=["environment"])
+
+# Sprint 8 — production governance hardening (policy registry, audit).
+api_router.include_router(sprint8_governance.router, tags=["governance"])

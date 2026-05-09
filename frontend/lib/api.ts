@@ -110,15 +110,34 @@ const RAW_BASE =
 export const API_BASE_URL = RAW_BASE.replace(/\/+$/, "");
 export const API_BASE_URL_MISSING = API_BASE_URL === "";
 
-class ApiError extends Error {
+export class ApiError extends Error {
   status: number;
   detail: unknown;
-  constructor(status: number, detail: unknown, message: string) {
+  requestId: string | null;
+  constructor(status: number, detail: unknown, message: string, requestId: string | null = null) {
     super(message);
     this.status = status;
     this.detail = detail;
+    this.requestId = requestId;
+  }
+  /** Network/timeout failures appear as status=0. Useful for offline UX. */
+  isNetwork(): boolean {
+    return this.status === 0;
+  }
+  /** Retryable status classes — transient infra issues. */
+  isRetryable(): boolean {
+    return this.status === 0 || this.status === 429 || this.status >= 500;
   }
 }
+
+function newRequestId(): string {
+  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
+    return crypto.randomUUID();
+  }
+  return `r-${Math.random().toString(36).slice(2)}-${Date.now().toString(36)}`;
+}
+
+const REQUEST_TIMEOUT_MS = 15_000;
 
 async function request<T>(
   path: string,
@@ -133,48 +152,92 @@ async function request<T>(
   }
 
   const url = `${API_BASE_URL}${path.startsWith("/") ? path : `/${path}`}`;
+  const reqId = newRequestId();
 
-  let res: Response;
-  try {
-    res = await fetch(url, {
-      ...init,
-      headers: {
-        "Content-Type": "application/json",
-        Accept: "application/json",
-        ...(init.headers ?? {}),
-      },
-      cache: "no-store",
-    });
-  } catch (e) {
-    throw new ApiError(
-      0,
-      null,
-      `Network error contacting API (${e instanceof Error ? e.message : "fetch failed"})`
-    );
-  }
+  // Idempotent reads get bounded retry; mutations execute exactly once. The
+  // backend's idempotency layer protects against double-submit; the client
+  // does not retry mutations to avoid duplicate side effects.
+  const method = (init.method ?? "GET").toUpperCase();
+  const isReadOnly = method === "GET" || method === "HEAD";
+  const maxAttempts = isReadOnly ? 3 : 1;
+  let attempt = 0;
+  let lastErr: ApiError | null = null;
 
-  if (!res.ok) {
-    let detail: unknown = null;
+  while (attempt < maxAttempts) {
+    attempt += 1;
+    let res: Response;
+    const ctl = typeof AbortController !== "undefined" ? new AbortController() : undefined;
+    const tmo = ctl ? setTimeout(() => ctl.abort(), REQUEST_TIMEOUT_MS) : undefined;
     try {
-      detail = await res.json();
-    } catch {
-      try {
-        detail = await res.text();
-      } catch {
-        detail = null;
+      res = await fetch(url, {
+        ...init,
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+          "x-request-id": reqId,
+          ...(init.headers ?? {}),
+        },
+        cache: "no-store",
+        signal: ctl?.signal,
+      });
+    } catch (e) {
+      if (tmo) clearTimeout(tmo);
+      const msg = e instanceof Error ? e.message : "fetch failed";
+      lastErr = new ApiError(
+        0,
+        null,
+        `Network error contacting API (${msg})`,
+        reqId
+      );
+      if (attempt < maxAttempts) {
+        await sleep(backoff(attempt));
+        continue;
       }
+      throw lastErr;
     }
-    const msg =
-      typeof detail === "object" && detail !== null && "detail" in detail
-        ? String((detail as { detail: unknown }).detail)
-        : `Request failed (${res.status})`;
-    throw new ApiError(res.status, detail, msg);
-  }
+    if (tmo) clearTimeout(tmo);
 
-  if (res.status === 204) {
-    return undefined as T;
+    if (!res.ok) {
+      let detail: unknown = null;
+      try {
+        detail = await res.json();
+      } catch {
+        try {
+          detail = await res.text();
+        } catch {
+          detail = null;
+        }
+      }
+      const msg =
+        typeof detail === "object" && detail !== null && "detail" in detail
+          ? String((detail as { detail: unknown }).detail)
+          : `Request failed (${res.status})`;
+      const apiErr = new ApiError(res.status, detail, msg, res.headers.get("x-request-id"));
+      if (apiErr.isRetryable() && attempt < maxAttempts) {
+        lastErr = apiErr;
+        await sleep(backoff(attempt));
+        continue;
+      }
+      throw apiErr;
+    }
+
+    if (res.status === 204) {
+      return undefined as T;
+    }
+    return (await res.json()) as T;
   }
-  return (await res.json()) as T;
+  // unreachable
+  throw lastErr ?? new ApiError(0, null, "request failed", reqId);
+}
+
+function backoff(attempt: number): number {
+  // 250ms, 500ms, 1000ms with jitter
+  const base = Math.min(2000, 250 * 2 ** (attempt - 1));
+  return base + Math.random() * 100;
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((r) => setTimeout(r, ms));
 }
 
 // ----- minimal firm / opportunity types for create forms -----
@@ -1089,4 +1152,3 @@ export const api = {
   environment: () => request<EnvironmentSnapshot>(`/environment`),
 };
 
-export { ApiError };
