@@ -1,0 +1,42 @@
+app = "bifrost-asgard-api"
+primary_region = "dfw"
+
+[build]
+  dockerfile = "backend/Dockerfile"
+
+[env]
+  ENVIRONMENT = "production"
+  PROJECT_NAME = "Bifrost"
+  API_V1_PREFIX = "/api/v1"
+  LOG_LEVEL = "INFO"
+  LOG_FORMAT = "json"
+  RATE_LIMIT_ENABLED = "true"
+  RATE_LIMIT_RPM = "600"
+  RATE_LIMIT_BURST = "120"
+  GOVERNANCE_AUTONOMY_CONFIDENCE_FLOOR = "0.65"
+  GOVERNANCE_MAX_PROPOSALS_PER_MISSION_PER_HOUR = "20"
+  BIFROST_WAIT_FOR_DB = "1"
+  BIFROST_WAIT_FOR_DB_TIMEOUT = "60"
+  BIFROST_RUN_MIGRATIONS = "0"
+
+[http_service]
+  internal_port = 8000
+  force_https = true
+  auto_stop_machines = false
+  auto_start_machines = true
+  min_machines_running = 1
+
+[[http_service.checks]]
+  grace_period = "30s"
+  interval = "15s"
+  method = "GET"
+  timeout = "5s"
+  path = "/api/v1/health"
+
+[deploy]
+  release_command = "python -m alembic upgrade head"
+
+[[vm]]
+  cpu_kind = "shared"
+  cpus = 1
+  memory_mb = 1024
