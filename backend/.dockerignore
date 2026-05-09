@@ -12,6 +12,5 @@ htmlcov
 !.env.example
 tests
 *.md
-docker
 .git
 .gitignore

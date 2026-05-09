@@ -1005,6 +1005,7 @@ export interface ExecutionQueueItemRead {
   completed_at?: string | null;
   created_at?: string | null;
   is_projected: boolean;
+  requires_approval?: boolean;
   meta?: Record<string, unknown> | null;
 }
 
