@@ -1,25 +1,62 @@
 "use client";
 
+import { useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { api } from "@/lib/api";
+import { api, API_BASE_URL, ApiError } from "@/lib/api";
 import { useWorkspace } from "./workspace-context";
 import { SeverityChip, fmtRelative } from "./format";
 
 export function Briefing() {
   const { runCommand } = useWorkspace();
+  const briefingQuery = useQuery({
+    queryKey: ["executive-briefing"],
+    queryFn: () => api.executiveBriefing(),
+  });
   const {
     data: briefing,
     isLoading: briefingLoading,
     error: briefingError,
     refetch: refetchBriefing,
-  } = useQuery({
-    queryKey: ["executive-briefing"],
-    queryFn: () => api.executiveBriefing(),
-  });
+  } = briefingQuery;
   const { data: alerts, error: alertsError } = useQuery({
     queryKey: ["executive-alerts"],
     queryFn: () => api.executiveAlerts(),
   });
+
+  // [briefing-diag] temporary diagnostics — remove once root cause identified
+  useEffect(() => {
+    const err = briefingError as Error | null;
+    const apiErr = err instanceof ApiError ? err : null;
+    const branch = briefingLoading
+      ? "loading"
+      : briefing === undefined
+      ? "failed-to-load"
+      : "rendered";
+    // eslint-disable-next-line no-console
+    console.log("[briefing-diag]", {
+      apiBaseUrl: API_BASE_URL,
+      status: briefingQuery.status,
+      fetchStatus: briefingQuery.fetchStatus,
+      isLoading: briefingQuery.isLoading,
+      isFetching: briefingQuery.isFetching,
+      isError: briefingQuery.isError,
+      briefingDefined: briefing !== undefined,
+      errorMessage: err?.message ?? null,
+      errorStatus: apiErr?.status ?? null,
+      errorRequestId: apiErr?.requestId ?? null,
+      errorDetail: apiErr?.detail ?? null,
+      branch,
+    });
+  }, [
+    briefingQuery.status,
+    briefingQuery.fetchStatus,
+    briefingQuery.isLoading,
+    briefingQuery.isFetching,
+    briefingQuery.isError,
+    briefing,
+    briefingError,
+    briefingLoading,
+  ]);
 
   if (briefingLoading) {
     return (
