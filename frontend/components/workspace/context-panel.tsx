@@ -288,7 +288,7 @@ function actionButtonsFor(item: ActionItem): Array<{
   if (item.domain === "engine") {
     out.push({ label: "show engine writes", command: "list engine writes" });
   }
-  if (item.domain === "intel") {
+  if ((item.domain as string) === "intel") {
     out.push({ label: "show top signals", command: "show top signals" });
     out.push({
       label: "industry news",
